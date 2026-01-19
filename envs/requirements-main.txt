@@ -1,0 +1,40 @@
+# Requirements for Main Pipeline Environment (llmhe)
+# This environment handles reranking, GNN, evaluation, and all other components
+#
+# Create with: conda create -n llmhe python=3.10
+# Install with: pip install -r envs/requirements-main.txt
+
+# Core ML
+torch>=2.0.0
+transformers>=4.40.0
+sentence-transformers>=5.0.0
+
+# Graph Neural Networks
+torch-geometric>=2.5.0
+torch-scatter
+torch-sparse
+
+# Reranking
+# Jina-Reranker-v3 works with latest transformers
+
+# Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+scipy>=1.10.0
+scikit-learn>=1.3.0
+
+# Evaluation & Metrics
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Utilities
+tqdm>=4.65.0
+pyyaml>=6.0
+loguru>=0.7.0
+
+# Testing
+pytest>=7.0.0
+pytest-cov>=4.0.0
+
+# This package (editable install)
+# pip install -e .

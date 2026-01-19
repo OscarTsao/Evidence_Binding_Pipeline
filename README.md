@@ -1,97 +1,174 @@
-# Final S–C Evidence Sentence Retrieval
+# Evidence Binding Pipeline
 
-This repo contains the final, deployment-aligned sentence–criterion (S–C) evidence retrieval pipeline:
-- **Retriever:** BGE-M3 dense retriever (within-post retrieval)
-- **Reranker:** Jina-v3 reranker (`jinaai/jina-reranker-v3`)
-- **Training:** Hybrid loss = listwise + pairwise + pointwise
+Sentence-Criterion (S-C) evidence retrieval for mental health research. Given a Reddit post and a DSM-5 criterion, retrieve sentences that serve as evidence.
 
-## Setup
+## Best Model Configuration
+
+| Component | Model | Performance |
+|-----------|-------|-------------|
+| **Retriever** | NV-Embed-v2 (`nvidia/NV-Embed-v2`) | 4096d embeddings |
+| **Reranker** | Jina-Reranker-v3 (`jinaai/jina-reranker-v3`) | Cross-encoder |
+| **nDCG@10** | **0.8658** | From 324 model combinations |
+| **AUROC (NE Gate)** | **0.8972** | P4 Criterion-Aware GNN |
+
+## Quick Start
+
+### 1. Environment Setup
+
+This project requires **two conda environments** due to dependency conflicts:
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
+# Retriever environment (NV-Embed-v2, transformers<=4.44)
+conda create -n nv-embed-v2 python=3.10 -y
+conda activate nv-embed-v2
+pip install -r envs/requirements-retriever.txt
+
+# Main environment (reranking, GNN, evaluation)
+conda create -n llmhe python=3.10 -y
+conda activate llmhe
+pip install -r envs/requirements-main.txt
 pip install -e .
 ```
 
-## Required local data layout
+See [docs/ENVIRONMENT_SETUP.md](docs/ENVIRONMENT_SETUP.md) for detailed setup instructions.
+
+### 2. Data Setup
 
 Place data locally (not tracked in git):
 
 ```
 data/
-  redsm5/
-    redsm5_posts.csv
-    redsm5_annotations.csv
-  DSM5/
-    MDD_Criteira.json
+├── redsm5/
+│   ├── redsm5_posts.csv
+│   └── redsm5_annotations.csv
+├── DSM5/
+│   └── MDD_Criteira.json
+└── groundtruth/           # Generated
+    ├── evidence_sentence_groundtruth.csv
+    └── sentence_corpus.jsonl
 ```
 
-## Commands
-
-Build groundtruth (sentence-level labels):
+### 3. Build Groundtruth
 
 ```bash
-python scripts/build_groundtruth.py --data_dir data --output data/groundtruth/evidence_sentence_groundtruth.csv
+conda activate llmhe
+
+# Build sentence-level labels
+python scripts/build_groundtruth.py \
+    --data_dir data \
+    --output data/groundtruth/evidence_sentence_groundtruth.csv
+
+# Build sentence corpus
+python scripts/build_sentence_corpus.py \
+    --data_dir data \
+    --output data/groundtruth/sentence_corpus.jsonl
 ```
 
-Build sentence corpus (canonical splitting + sent_uid):
+### 4. Reproduce Paper Results
 
 ```bash
-python scripts/build_sentence_corpus.py --data_dir data --output data/groundtruth/sentence_corpus.jsonl
+# Full reproduction (handles environment switching)
+bash scripts/run_paper_reproduce.sh
 ```
 
-Train hybrid reranker:
+Or run individual steps:
 
 ```bash
-python scripts/train_reranker_hybrid.py --config configs/reranker_hybrid.yaml
+# 1. Run tests
+conda activate llmhe
+pytest -q
+
+# 2. Audit splits (verify no data leakage)
+python scripts/audit_splits.py --data_dir data --seed 42 --k 5
+
+# 3. Encode corpus (requires nv-embed-v2 env)
+conda activate nv-embed-v2
+python scripts/encode_corpus.py \
+    --retriever nv-embed-v2 \
+    --corpus data/groundtruth/sentence_corpus.jsonl \
+    --output data/cache/nv-embed-v2
+
+# 4. Evaluate (back to main env)
+conda activate llmhe
+python scripts/eval_zoo_pipeline.py \
+    --config configs/default.yaml \
+    --split test
 ```
 
-Evaluate retriever-only + reranked:
+## Project Structure
 
-```bash
-python scripts/eval_sc_pipeline.py --config configs/default.yaml --output outputs/eval_summary.json
+```
+├── configs/               # YAML configuration files
+├── data/                  # Data files (not tracked)
+├── docs/                  # Documentation
+│   ├── ENVIRONMENT_SETUP.md
+│   ├── final/            # Paper reproduction docs
+│   └── verification/     # Audit reports
+├── envs/                  # Environment requirements
+│   ├── requirements-retriever.txt
+│   └── requirements-main.txt
+├── outputs/               # Generated outputs (not tracked)
+├── paper/                 # Paper figures and tables
+├── results/               # Paper bundle
+├── scripts/               # Executable scripts
+├── src/                   # Source code
+│   └── final_sc_review/
+│       ├── data/         # Data loading
+│       ├── gnn/          # GNN modules (P1-P4)
+│       ├── metrics/      # Evaluation metrics
+│       ├── pipeline/     # Pipeline implementations
+│       ├── reranker/     # Reranker models
+│       └── retriever/    # Retriever models
+└── tests/                 # Test suite
 ```
 
-Run a single query (post_id + criterion):
+## Key Commands
 
-```bash
-python scripts/run_single.py --config configs/default.yaml --post_id <POST_ID> --criterion_id <CRITERION_ID>
+| Command | Description |
+|---------|-------------|
+| `bash scripts/run_paper_reproduce.sh` | Full paper reproduction |
+| `python scripts/eval_zoo_pipeline.py` | Evaluate pipeline |
+| `python scripts/audit_splits.py` | Verify no data leakage |
+| `python scripts/encode_corpus.py` | Pre-compute embeddings |
+| `pytest` | Run all tests |
+
+## Documentation
+
+- [ENVIRONMENT_SETUP.md](docs/ENVIRONMENT_SETUP.md) - Conda environment setup
+- [PAPER_COMMANDS.md](docs/final/PAPER_COMMANDS.md) - Paper reproduction commands
+- [PAPER_REPRODUCIBILITY.md](docs/final/PAPER_REPRODUCIBILITY.md) - Full reproduction guide
+- [METRIC_CONTRACT.md](docs/final/METRIC_CONTRACT.md) - Metric definitions
+
+## Key Design Decisions
+
+1. **Post-ID Disjoint Splits**: All train/val/test splits ensure no post appears in multiple splits (prevents data leakage)
+
+2. **Within-Post Retrieval**: Candidate pool is always sentences from the same post (clinically meaningful)
+
+3. **Dual Environment**: NV-Embed-v2 requires `transformers<=4.44`, other components need `transformers>=4.45`
+
+4. **Caching**: Embeddings are cached with corpus fingerprints for reproducibility
+
+## Results Summary
+
+| Metric | Value |
+|--------|-------|
+| nDCG@10 | 0.8658 |
+| Recall@10 | 0.7043 |
+| AUROC (NE Gate) | 0.8972 |
+| Screening Sensitivity | 99.78% |
+| Alert Precision | 93.5% |
+
+## Citation
+
+```bibtex
+@article{evidence_binding_2026,
+  title={Evidence Binding Pipeline for Mental Health Assessment},
+  author={...},
+  year={2026}
+}
 ```
 
-## Notes
-- Evaluation is strict and uses groundtruth labels only (no gold-from-preds).
-- All splits are **post_id-disjoint** to prevent leakage.
-- Canonical sentence splitting and `sent_uid = f"{post_id}_{sid}"` are used everywhere.
-- BGE-M3 hybrid retrieval (dense + sparse + ColBERT) requires `FlagEmbedding` (installed via `pip install -e .`).
+## License
 
-## HPO (Cache-First, Dev-Only)
-
-Stage A: build cache and run inference HPO (no model inference inside trials).
-
-```bash
-python scripts/precompute_hpo_cache.py --config configs/hpo_inference.yaml
-python scripts/hpo_inference.py --config configs/hpo_inference.yaml --n_trials 200 --study_name sc_inference
-```
-
-Multi-GPU workers (one worker per GPU):
-
-```bash
-python scripts/launch_hpo_multi_gpu.py --config configs/hpo_inference.yaml --study_name sc_inference --n_trials_per_worker 200
-```
-
-Export best config and run a final test evaluation:
-
-```bash
-python scripts/export_best_config.py --study_name sc_inference --storage sqlite:///outputs/hpo/optuna.db
-python scripts/final_eval.py --best_config outputs/hpo/sc_inference/best_config.yaml
-```
-
-Optional training HPO (disabled by default):
-
-```bash
-python scripts/hpo_training.py --config configs/hpo_training.yaml --n_trials 20 --study_name sc_training
-```
-
-Research protocol:
-- HPO uses DEV only; TEST is evaluated once with the selected best config.
-- Cache and Optuna studies are stored under `outputs/`.
+[License details here]

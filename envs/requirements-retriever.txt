@@ -1,0 +1,24 @@
+# Requirements for NV-Embed-v2 Retriever Environment
+# This environment is specifically for the NV-Embed-v2 model which requires
+# an older version of transformers (<=4.44.x)
+#
+# Create with: conda create -n nv-embed-v2 python=3.10
+# Install with: pip install -r envs/requirements-retriever.txt
+
+# Core ML
+torch>=2.0.0
+transformers>=4.42.0,<4.45.0  # CRITICAL: NV-Embed-v2 breaks with transformers>=4.45
+sentence-transformers>=2.7.0,<3.0.0
+
+# Retrieval
+FlagEmbedding>=1.2.0
+einops>=0.7.0
+
+# Data
+pandas>=2.0.0
+numpy>=1.24.0
+scipy>=1.10.0
+
+# Utilities
+tqdm>=4.65.0
+pyyaml>=6.0

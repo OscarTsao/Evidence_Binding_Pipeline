@@ -26,6 +26,7 @@ class TestRequiredScriptsExist:
         "scripts/build_sentence_corpus.py",
         "scripts/eval_zoo_pipeline.py",
         "scripts/audit_splits.py",
+        "scripts/encode_corpus.py",
         "scripts/verification/metric_crosscheck.py",
         "scripts/verification/audit_splits_and_leakage.py",
         "scripts/verification/generate_publication_plots.py",
@@ -47,6 +48,7 @@ class TestRequiredDocsExist:
     REQUIRED_DOCS = [
         "README.md",
         "CLAUDE.md",
+        "docs/ENVIRONMENT_SETUP.md",
         "docs/final/PAPER_REPRODUCIBILITY.md",
         "docs/final/PAPER_COMMANDS.md",
         "docs/verification/COMPREHENSIVE_VERIFICATION_REPORT.md",
