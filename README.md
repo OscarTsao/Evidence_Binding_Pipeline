@@ -74,25 +74,25 @@ bash scripts/run_paper_reproduce.sh
 Or run individual steps:
 
 ```bash
-# 1. Run tests
+# 1. Run tests (main env)
 conda activate llmhe
 pytest -q
 
-# 2. Audit splits (verify no data leakage)
+# 2. Audit splits (main env)
 python scripts/audit_splits.py --data_dir data --seed 42 --k 5
 
-# 3. Encode corpus (requires nv-embed-v2 env)
+# 3. Evaluate with NV-Embed-v2 (requires nv-embed-v2 env)
 conda activate nv-embed-v2
+pip install -e .  # Install package in this env too
+python scripts/eval_zoo_pipeline.py \
+    --config configs/default.yaml \
+    --split test
+
+# Alternative: Encode corpus only, then use cached embeddings
 python scripts/encode_corpus.py \
     --retriever nv-embed-v2 \
     --corpus data/groundtruth/sentence_corpus.jsonl \
     --output data/cache/nv-embed-v2
-
-# 4. Evaluate (back to main env)
-conda activate llmhe
-python scripts/eval_zoo_pipeline.py \
-    --config configs/default.yaml \
-    --split test
 ```
 
 ## Project Structure

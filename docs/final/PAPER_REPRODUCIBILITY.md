@@ -24,23 +24,33 @@ This script will:
 - Python 3.10+
 - CUDA 11.8+ (for GPU inference)
 - 32GB+ GPU VRAM (for NV-Embed-v2)
+- Conda (for environment management)
 
-### Installation
+### Installation (Dual Environment Required)
+
+**IMPORTANT:** This project requires two conda environments due to NV-Embed-v2's dependency on older transformers.
 
 ```bash
-# Create virtual environment
-python -m venv .venv
-source .venv/bin/activate
-
-# Install package and dependencies
+# 1. Create main environment (reranking, GNN, tests)
+conda create -n llmhe python=3.10 -y
+conda activate llmhe
+pip install -r envs/requirements-main.txt
 pip install -e .
-
-# Optional: Install sentence-transformers for retriever zoo
-pip install sentence-transformers
 
 # Optional: Install PyTorch Geometric for GNN modules
 pip install torch-geometric
+pip install torch-scatter torch-sparse -f https://data.pyg.org/whl/torch-2.0.0+cu118.html
+
+# 2. Create retriever environment (NV-Embed-v2)
+conda create -n nv-embed-v2 python=3.10 -y
+conda activate nv-embed-v2
+pip install -r envs/requirements-retriever.txt
+pip install -e .
 ```
+
+**Why two environments?** NV-Embed-v2 requires `transformers<=4.44`, while Jina-Reranker-v3 and sentence-transformers 5.x need `transformers>=4.45`.
+
+See `docs/ENVIRONMENT_SETUP.md` for detailed setup instructions.
 
 ### Hardware Notes
 - Primary evaluation uses NVIDIA RTX 5090 (32GB)

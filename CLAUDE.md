@@ -17,12 +17,27 @@ This is a sentence-criterion (S-C) evidence retrieval pipeline for mental health
 
 ## Commands
 
-### Setup
+### Setup (Dual Environment Required)
+
+This project requires **two conda environments** due to NV-Embed-v2's dependency on older transformers:
+
 ```bash
-python -m venv .venv
-source .venv/bin/activate
+# Main environment (reranking, GNN, tests)
+conda create -n llmhe python=3.10 -y
+conda activate llmhe
+pip install -r envs/requirements-main.txt
+pip install -e .
+
+# Retriever environment (NV-Embed-v2 encoding/evaluation)
+conda create -n nv-embed-v2 python=3.10 -y
+conda activate nv-embed-v2
+pip install -r envs/requirements-retriever.txt
 pip install -e .
 ```
+
+See `docs/ENVIRONMENT_SETUP.md` for detailed setup instructions.
+
+**Why two environments?** NV-Embed-v2 requires `transformers<=4.44`, but Jina-Reranker-v3 and sentence-transformers 5.x need `transformers>=4.45`.
 
 ### Required Data Layout
 Place data locally (not tracked in git):
