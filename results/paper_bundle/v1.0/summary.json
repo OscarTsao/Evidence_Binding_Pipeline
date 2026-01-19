@@ -1,0 +1,16 @@
+{
+  "version": "v1.0",
+  "created": "2026-01-19T19:01:02.703048",
+  "figures": {
+    "count": 3,
+    "files": [
+      "component_comparison.png",
+      "calibration_plots.png",
+      "roc_pr_curves.png"
+    ]
+  },
+  "tables": {
+    "count": 0,
+    "files": []
+  }
+}
