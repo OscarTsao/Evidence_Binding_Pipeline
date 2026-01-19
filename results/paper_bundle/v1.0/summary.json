@@ -1,8 +1,8 @@
 {
   "version": "v1.0",
   "created": "2026-01-19T23:11:49.353263",
-  "updated": "2026-01-20T00:00:00.000000",
-  "git_commit": "9403a7f",
+  "updated": "2026-01-20T01:00:00.000000",
+  "git_commit": "2412600",
   "figures": {
     "count": 10,
     "files": [
@@ -19,9 +19,13 @@
     ]
   },
   "tables": {
-    "count": 0,
-    "files": [],
-    "note": "Tables are embedded in report.md"
+    "count": 4,
+    "files": [
+      "tables/main_results.csv",
+      "tables/per_criterion.csv",
+      "tables/gnn_modules.csv",
+      "tables/ablation_summary.csv"
+    ]
   },
   "metrics": {
     "primary": {

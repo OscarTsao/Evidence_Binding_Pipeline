@@ -1,0 +1,13 @@
+study,config,retriever,reranker,ndcg_at_10,note
+retriever_comparison,best,nv-embed-v2,jina-reranker-v3,0.8658,HPO winner from 324 combinations
+retriever_comparison,2nd,qwen3-embed-0.6b,bge-reranker-v2-m3,0.8438,Fast alternative
+retriever_comparison,3rd,bge-m3,jina-reranker-v3,0.8395,Hybrid baseline
+retriever_comparison,4th,bge-large-en-v1.5,jina-reranker-v2,0.8366,Classic baseline
+reranker_ablation,jina-v3,nv-embed-v2,jina-reranker-v3,0.8658,Best reranker
+reranker_ablation,bge-reranker-large,nv-embed-v2,bge-reranker-large,0.8323,Strong alternative
+reranker_ablation,jina-v2,nv-embed-v2,jina-reranker-v2,0.8200,Previous generation
+reranker_ablation,bge-reranker-v2-m3,nv-embed-v2,bge-reranker-v2-m3,0.8182,Multilingual
+reranker_ablation,mxbai-base,nv-embed-v2,mxbai-rerank-base-v1,0.7866,Fast baseline
+retriever_only,nv-embed-v2,nv-embed-v2,none,0.7340,No reranking baseline
+retriever_only,bge-m3,bge-m3,none,0.7127,Hybrid no-rerank
+retriever_only,bm25,bm25,none,0.5802,Lexical baseline

@@ -1,0 +1,10 @@
+criterion,description,n_queries,evidence_rate,auroc
+A.1,Depressed Mood,1477,0.321,0.91
+A.2,Anhedonia,1477,0.285,0.89
+A.3,Weight/Appetite Change,1477,0.152,0.88
+A.4,Sleep Disturbance,1477,0.223,0.90
+A.5,Psychomotor Changes,1477,0.087,0.85
+A.6,Fatigue/Loss of Energy,1477,0.091,0.93
+A.7,Worthlessness/Guilt,1477,0.189,0.91
+A.8,Concentration Difficulty,1477,0.124,0.87
+A.9,Suicidal Ideation,1477,0.068,0.92
