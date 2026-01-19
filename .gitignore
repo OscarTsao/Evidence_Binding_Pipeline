@@ -1,3 +1,4 @@
+# Python
 .venv/
 __pycache__/
 *.pyc
@@ -11,16 +12,46 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 
-# Data and outputs
+# Data and outputs (not tracked in git)
 /data/
 outputs/
 artifacts/
 logs/
 
-# Model checkpoints
+# Results (except paper_bundle which is committed)
+results/*
+!results/paper_bundle/
+
+# Model checkpoints and large binaries
 *.bin
 *.pt
 *.pth
+*.ckpt
+*.safetensors
+*.pkl
+*.npy
 
-# Local configs
+# Large compressed files (unless explicitly needed)
+*.tar.gz
+*.zip
+
+# Local configs and secrets
 .env
+.env.*
+*.key
+*credentials*
+*secret*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Notebooks (exploratory)
+notebook/
+*.ipynb_checkpoints/
