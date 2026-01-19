@@ -1,4 +1,0 @@
-module,metric,value,std,baseline,improvement,note
-p2_dynamic_k,hit_rate,0.9244,0.0141,,+2.7%,vs fixed-K
-p3_graph_reranker,recall_at_10,0.8351,,0.7019,+19.0%,improvement from baseline
-p4_ne_gate,auroc,0.9053,0.0108,,+0.96%,vs BGE-M3 baseline

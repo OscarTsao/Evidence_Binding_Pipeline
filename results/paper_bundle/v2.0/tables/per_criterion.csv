@@ -1,0 +1,11 @@
+criterion,description,n_positive,auroc
+A.1,Depressed Mood,328,0.83
+A.2,Anhedonia,124,0.88
+A.3,Weight/Appetite Change,44,0.91
+A.4,Sleep Disturbance,102,0.89
+A.5,Psychomotor Changes,35,0.80
+A.6,Fatigue/Loss of Energy,124,0.93
+A.7,Worthlessness/Guilt,311,0.92
+A.8,Concentration Difficulty,59,0.80
+A.9,Suicidal Ideation,166,0.95
+A.10,Duration (2+ weeks),86,0.66

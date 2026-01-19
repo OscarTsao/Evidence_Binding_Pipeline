@@ -1,0 +1,24 @@
+{
+  "version": "v2.0",
+  "created": "2026-01-20T01:00:00.000000",
+  "git_commit": "pending",
+  "tables": {
+    "count": 3,
+    "files": [
+      "tables/main_results.csv",
+      "tables/per_criterion.csv",
+      "tables/ablation.csv"
+    ]
+  },
+  "metrics": {
+    "primary": {
+      "ndcg_at_10": 0.8658,
+      "evidence_recall_at_k": 0.7043,
+      "mrr": 0.3801,
+      "auroc": 0.8972,
+      "auprc": 0.5709
+    },
+    "protocol": "positives_only for ranking, all_queries for classification",
+    "split": "TEST (seed=42)"
+  }
+}

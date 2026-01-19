@@ -1,0 +1,13 @@
+# SHA256 Checksums for Paper Bundle v2.0
+# Generated: 2026-01-20
+# Verify: sha256sum -c checksums.txt
+
+# Core files
+071d9c6b364e3241c1431ff58e1e8c02d402f4f9e11745f4d675132c5d3a130f  metrics_master.json
+1339d602003ec91df431ae84903f8e449af98b9018c519de9bff387a39a4f3fc  summary.json
+9795884640b5d1c03a2da088b2df8e0c902cecb29ab166c1242e125d2a290683  MANIFEST.md
+
+# Tables
+8e8f1246cde492ceb5b2daecc48f1af12f6ef48f84c6e9980fed6563d152c8c9  tables/main_results.csv
+f87e8f85fd3f4e0dad8951dc1824e97ea4debe2321d47fb76497f9567cb7483a  tables/per_criterion.csv
+d083bd7b6546cd34a02c4fa1f9af7fffbdc72764f0860fcc2a72d69e2acdcab4  tables/ablation.csv

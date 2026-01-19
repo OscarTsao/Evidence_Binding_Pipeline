@@ -1,35 +1,24 @@
 cff-version: 1.2.0
-title: Evidence Binding Pipeline
+title: Evidence Binding Pipeline for Mental Health Assessment
 message: >-
   If you use this software, please cite it using the
   metadata from this file.
 type: software
 authors:
-  - name: "Evidence Binding Pipeline Authors"
-repository-code: 'https://github.com/your-org/Evidence_Binding_Pipeline'
-url: 'https://github.com/your-org/Evidence_Binding_Pipeline'
+  - family-names: Tsao
+    given-names: Oscar
+repository-code: https://github.com/OscarTsao/Evidence_Binding_Pipeline
+license: MIT
+version: 2.0.0
+date-released: 2026-01-20
 abstract: >-
-  Sentence-Criterion (S-C) evidence retrieval pipeline for mental health
-  research. Given a Reddit post and a DSM-5 criterion, this system retrieves
-  sentences that serve as evidence for the criterion. Uses NV-Embed-v2 for
-  retrieval and Jina-Reranker-v3 for reranking, achieving nDCG@10 = 0.8658
-  from 324 model combinations. Includes GNN enhancements (P1-P4) with
-  AUROC = 0.8972 for evidence detection.
+  A sentence-criterion evidence retrieval system for mental health
+  research. Given a Reddit post and a DSM-5 MDD criterion, retrieves
+  sentences serving as evidence supporting or refuting the criterion.
 keywords:
   - mental health
   - natural language processing
   - evidence retrieval
-  - sentence retrieval
   - DSM-5
-  - clinical NLP
+  - depression assessment
   - graph neural networks
-license: MIT
-version: '1.0.0'
-date-released: '2026-01-19'
-preferred-citation:
-  type: article
-  authors:
-    - name: "Evidence Binding Pipeline Authors"
-  title: "Evidence Sentence Retrieval for Mental Health Assessment"
-  year: 2026
-  journal: "TBD"

@@ -1,166 +1,115 @@
 # Ethics Statement
 
-This document describes the ethical considerations, privacy protections, and compliance measures for the Evidence Binding Pipeline research project.
-
----
-
 ## Overview
 
-This research involves analyzing social media posts from mental health communities to develop NLP tools for evidence extraction. We take privacy and ethical considerations seriously.
+This research involves analysis of social media content related to mental health. We take privacy, safety, and ethical considerations seriously.
 
----
+## Data Privacy
 
-## Data Source and Collection
+### Source Data
+- **Origin**: Public Reddit posts from mental health communities
+- **Collection**: Posts were publicly available at time of collection
+- **No Private Data**: No private messages, deleted posts, or non-public content
 
-### Source
-- Data collected from public Reddit posts in mental health communities
-- Posts were publicly visible at time of collection
-- No private messages or protected content was accessed
+### Privacy Protections
 
-### Collection Protocol
-- Data collected for research purposes only
-- Collection methods complied with Reddit's Terms of Service at time of collection
-- No user accounts were created or manipulated for data collection
+1. **No Raw Data in Repository**: Original post content is never committed
+2. **Anonymization**: All post IDs are anonymized (e.g., `s_106_89`)
+3. **No Re-identification**: Analyses designed to prevent user identification
+4. **Aggregate Reporting**: Results reported at aggregate level only
 
----
+### Data Handling
 
-## Privacy Protections
+- Raw data stored on secured, access-controlled servers
+- No cloud storage of identifiable content
+- Data access requires signed DUA
+- Retention limited to research duration + archival period
 
-### Anonymization
-All data has been anonymized to prevent re-identification:
+## IRB Compliance
 
-1. **Username removal**: All Reddit usernames have been removed or replaced with random identifiers
-2. **Post ID anonymization**: Original Reddit post IDs are not stored; internal IDs are used
-3. **Temporal information**: Timestamps have been removed or generalized
-4. **Identifying information**: Any personally identifying information (names, locations, specific dates) has been redacted
+### Status
+Research conducted under institutional review with appropriate exemptions for:
+- Public data analysis
+- No direct participant interaction
+- Minimal risk category
 
-### Storage Security
-- Data stored on encrypted drives
-- Access restricted to authorized researchers
-- No cloud storage of raw data
-- Audit logs maintained for data access
+### Considerations Addressed
+- Public nature of source data
+- Sensitive mental health content
+- Potential for identification
+- Benefit to mental health research
 
-### Re-identification Risk
-- We have assessed re-identification risk as low due to:
-  - Removal of usernames and post IDs
-  - Generalization of temporal information
-  - Redaction of identifying details
-- We do not attempt to re-identify any individuals
+## Responsible AI
 
----
+### Clinical Use Disclaimers
 
-## Ethical Review
+**This system is NOT intended for:**
+- Clinical diagnosis
+- Treatment recommendations
+- Unsupervised mental health assessment
+- Direct patient-facing applications
 
-### Institutional Review
-- Research protocol reviewed by institutional ethics committee
-- Determination: Exempt/Approved (details withheld for anonymity)
-- Protocol number available upon request after peer review
+**Appropriate uses:**
+- Research tool with clinical oversight
+- Screening assistance (not replacement)
+- Evidence aggregation for expert review
 
-### Ethical Considerations
-1. **Beneficence**: Research aims to improve mental health screening tools
-2. **Non-maleficence**: No direct contact with data subjects; no intervention
-3. **Autonomy**: Data subjects posted publicly; no consent required for public data analysis
-4. **Justice**: Tools developed will be available for research community
+### Limitations Acknowledged
 
----
+1. **Not a Diagnostic Tool**: Model outputs are evidence indicators, not diagnoses
+2. **Population Bias**: Training data from Reddit may not generalize
+3. **False Negatives**: Missing evidence does not mean absence of symptoms
+4. **Context Dependency**: Sentence-level analysis may miss context
 
-## Intended Use and Misuse Prevention
+### Safety Measures
 
-### Intended Use
-- Research into NLP methods for mental health
-- Development of clinical decision support tools
-- Academic publication and reproducibility
+- High-sensitivity threshold for clinical deployment (99.78% screening sensitivity)
+- Three-state output (NEG/UNCERTAIN/POS) to flag uncertain cases
+- Mandatory human review for all flagged content
+- No automated actions without expert verification
 
-### NOT Intended For
-- Individual diagnosis without clinical oversight
-- Surveillance or monitoring of individuals
-- Commercial profiling or targeting
-- Law enforcement purposes
+## Content Sensitivity
 
-### Safeguards
-- Code is released under MIT license for research
-- Documentation emphasizes clinical oversight requirement
-- No individual-level predictions provided without context
+### Mental Health Content
+This research involves content discussing:
+- Depression symptoms
+- Suicidal ideation
+- Emotional distress
+- Personal struggles
 
----
+### Researcher Wellbeing
+- Exposure to sensitive content managed through:
+  - Batch processing (not real-time reading)
+  - Aggregate analysis focus
+  - Support resources available
 
-## Sensitive Content Handling
+## Dual Use Considerations
 
-### Suicidal Ideation (Criterion A.9)
-- This research includes analysis of posts mentioning suicidal ideation
-- Content is handled with appropriate sensitivity:
-  - Not displayed in public demos without warning
-  - Researchers trained in appropriate handling
-  - Crisis resources available in documentation
+### Beneficial Uses
+- Improving mental health screening efficiency
+- Supporting clinical research
+- Reducing assessment burden
 
-### Mental Health Stigma
-- We avoid language that stigmatizes mental health conditions
-- Technical terminology is clinical and neutral
-- We acknowledge the lived experience of individuals with depression
-
----
-
-## Dual-Use Considerations
-
-### Potential Benefits
-- Improved screening efficiency
-- Earlier detection of mental health concerns
-- Reduced clinician workload
-- Standardized evidence extraction
-
-### Potential Risks
-- Over-reliance on automated tools
-- False positives/negatives in clinical settings
-- Privacy concerns if deployed without safeguards
-- Potential for misuse in non-clinical contexts
-
-### Mitigation
-- Clear documentation of limitations
-- Emphasis on human-in-the-loop requirement
-- Publication of performance bounds and failure modes
-- Restricted access to sensitive data
-
----
+### Potential Misuses (Mitigated)
+- **Surveillance**: Data access requires ethical approval
+- **Stigmatization**: No individual-level outputs published
+- **Commercial exploitation**: MIT license allows review of use
 
 ## Compliance
 
-### Platform Terms of Service
-- Data collection complied with Reddit Terms of Service
-- Data used for research purposes only
-- No commercial use of data
+### Regulations Considered
+- HIPAA (for any clinical deployment)
+- GDPR (for any EU data)
+- Platform ToS (Reddit API)
 
-### Data Protection
-- GDPR considerations: Data minimization, purpose limitation
-- No EU personal data knowingly collected
-- Right to erasure: Contact authors if you believe your data is included
-
-### Research Standards
-- Adherence to ACM Code of Ethics
-- Following best practices for NLP research ethics
-- Transparent reporting of methods and limitations
-
----
+### Best Practices Followed
+- ACM Code of Ethics
+- NeurIPS ethics guidelines
+- Mental health research standards
 
 ## Contact
 
-For ethical concerns or questions:
-- Contact research team via GitHub issues (for general questions)
-- Contact institutional ethics committee for formal concerns
-- Email authors directly for data-related requests
-
----
-
-## Acknowledgments
-
-We thank:
-- Participants in mental health communities for sharing their experiences
-- Ethics committee reviewers for guidance
-- Mental health professionals who provided clinical perspective
-
----
-
-## References
-
-- Benton, A., et al. (2017). Ethical Research Protocols for Social Media Health Research.
-- Chancellor, S., & De Choudhury, M. (2020). Methods in Predictive Techniques for Mental Health Status on Social Media.
-- ACM Code of Ethics and Professional Conduct (2018).
+For ethics-related questions:
+- Raise issues in the repository
+- Contact institutional ethics board
+- Email maintainers directly
