@@ -1,0 +1,29 @@
+enabled: true
+
+paths:
+  data_dir: data
+  groundtruth: data/groundtruth/evidence_sentence_groundtruth.csv
+  sentence_corpus: data/groundtruth/sentence_corpus.jsonl
+  criteria: data/DSM5/MDD_Criteira.json
+  hpo_output_dir: outputs/hpo
+
+models:
+  # Use BGE reranker (smaller than Jina-v3 which is ~7B params)
+  jina_v3: BAAI/bge-reranker-v2-m3
+
+data:
+  max_candidates: 16  # Reduced for Jina-v3 (~7B params)
+
+split:
+  seed: 42
+  train_ratio: 0.8
+  val_ratio: 0.1
+  test_ratio: 0.1
+
+search_space:
+  max_length: [128, 256]  # Reduced for memory
+  batch_size: [1, 2]  # Small batches for large model
+  num_epochs: [1, 3]
+  learning_rate: [0.000001, 0.0001]
+  weight_decay: [0.00001, 0.01]
+  max_pairs_per_group: 16
