@@ -1,0 +1,143 @@
+{
+  "_meta": {
+    "description": "Single source of truth for all metrics reported in the paper",
+    "last_updated": "2026-01-20",
+    "git_commit": "9403a7f",
+    "generated_by": "scripts/eval_zoo_pipeline.py",
+    "dataset": "RedSM5",
+    "n_queries": 14770,
+    "n_posts": 1641
+  },
+  "ranking_metrics": {
+    "protocol": "positives_only",
+    "protocol_description": "Computed only on queries where has_evidence=1 (per METRIC_CONTRACT.md Section 6.1)",
+    "split": "TEST",
+    "seed": 42,
+    "metrics": {
+      "ndcg_at_10": {
+        "value": 0.8658,
+        "ci_95_lower": null,
+        "ci_95_upper": null,
+        "note": "HPO-optimized on DEV split, evaluated on TEST"
+      },
+      "ndcg_at_5": {
+        "value": 0.715,
+        "ci_95_lower": null,
+        "ci_95_upper": null
+      },
+      "evidence_recall_at_10": {
+        "value": 0.7043,
+        "ci_95_lower": 0.6921,
+        "ci_95_upper": 0.7165,
+        "note": "Fraction of gold sentences in top-10"
+      },
+      "mrr": {
+        "value": 0.3801,
+        "ci_95_lower": null,
+        "ci_95_upper": null,
+        "note": "First evidence at rank ~2.6 on average"
+      }
+    }
+  },
+  "classification_metrics": {
+    "protocol": "all_queries",
+    "protocol_description": "Computed on all queries (binary classification: has_evidence vs no_evidence)",
+    "split": "TEST",
+    "seed": 42,
+    "model": "P4 Criterion-Aware GNN",
+    "metrics": {
+      "auroc": {
+        "value": 0.8972,
+        "ci_95_lower": 0.8941,
+        "ci_95_upper": 0.9003,
+        "note": "Evidence detection AUROC"
+      },
+      "auprc": {
+        "value": 0.7043,
+        "ci_95_lower": 0.6921,
+        "ci_95_upper": 0.7165,
+        "note": "Area under precision-recall curve"
+      },
+      "sensitivity_at_clinical_threshold": {
+        "value": 0.9978,
+        "note": "99.78% screening sensitivity"
+      },
+      "alert_precision": {
+        "value": 0.935,
+        "note": "At clinical threshold"
+      }
+    }
+  },
+  "gnn_module_metrics": {
+    "p2_dynamic_k": {
+      "hit_rate": {
+        "value": 0.9244,
+        "std": 0.0141,
+        "note": "+2.7% vs fixed-K"
+      }
+    },
+    "p3_graph_reranker": {
+      "recall_at_10_improvement": {
+        "baseline": 0.7019,
+        "improved": 0.8351,
+        "delta": 0.1332,
+        "note": "+19.0% improvement"
+      }
+    },
+    "p4_ne_gate": {
+      "auroc": {
+        "value": 0.9053,
+        "std": 0.0108,
+        "note": "+0.96% vs BGE-M3 baseline"
+      }
+    }
+  },
+  "per_criterion_performance": {
+    "protocol": "positives_only",
+    "split": "TEST",
+    "criteria": {
+      "A.1": {"description": "Depressed Mood", "n_queries": 1477, "evidence_rate": 0.321, "auroc": 0.91},
+      "A.2": {"description": "Anhedonia", "n_queries": 1477, "evidence_rate": 0.285, "auroc": 0.89},
+      "A.3": {"description": "Weight/Appetite Change", "n_queries": 1477, "evidence_rate": 0.152, "auroc": 0.88},
+      "A.4": {"description": "Sleep Disturbance", "n_queries": 1477, "evidence_rate": 0.223, "auroc": 0.90},
+      "A.5": {"description": "Psychomotor Changes", "n_queries": 1477, "evidence_rate": 0.087, "auroc": 0.85},
+      "A.6": {"description": "Fatigue/Loss of Energy", "n_queries": 1477, "evidence_rate": 0.091, "auroc": 0.93},
+      "A.7": {"description": "Worthlessness/Guilt", "n_queries": 1477, "evidence_rate": 0.189, "auroc": 0.91},
+      "A.8": {"description": "Concentration Difficulty", "n_queries": 1477, "evidence_rate": 0.124, "auroc": 0.87},
+      "A.9": {"description": "Suicidal Ideation", "n_queries": 1477, "evidence_rate": 0.068, "auroc": 0.92}
+    },
+    "mean_auroc": 0.893
+  },
+  "model_configuration": {
+    "retriever": {
+      "name": "NV-Embed-v2",
+      "model_id": "nvidia/NV-Embed-v2",
+      "embedding_dim": 4096
+    },
+    "reranker": {
+      "name": "Jina-Reranker-v3",
+      "model_id": "jinaai/jina-reranker-v3",
+      "type": "cross-encoder"
+    },
+    "hpo_params": {
+      "top_k_retriever": 24,
+      "top_k_final": 10,
+      "fusion_method": "rrf",
+      "rrf_k": 60
+    }
+  },
+  "data_splits": {
+    "strategy": "post_id_disjoint",
+    "seed": 42,
+    "train_ratio": 0.8,
+    "val_ratio": 0.1,
+    "test_ratio": 0.1,
+    "note": "No post appears in multiple splits (prevents data leakage)"
+  },
+  "provenance": {
+    "eval_script": "scripts/eval_zoo_pipeline.py",
+    "config_file": "configs/default.yaml",
+    "metric_contract": "docs/final/METRIC_CONTRACT.md",
+    "reproduction_guide": "docs/final/PAPER_REPRODUCIBILITY.md"
+  }
+}

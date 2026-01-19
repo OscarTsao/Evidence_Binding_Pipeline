@@ -151,13 +151,19 @@ python scripts/encode_corpus.py \
 
 ## Results Summary
 
-| Metric | Value |
-|--------|-------|
-| nDCG@10 | 0.8658 |
-| Recall@10 | 0.7043 |
-| AUROC (NE Gate) | 0.8972 |
-| Screening Sensitivity | 99.78% |
-| Alert Precision | 93.5% |
+| Metric | Value | Protocol | Split |
+|--------|-------|----------|-------|
+| nDCG@10 | 0.8658 | positives_only | TEST |
+| Evidence Recall@10 | 0.7043 | positives_only | TEST |
+| AUROC (NE Gate) | 0.8972 [0.8941, 0.9003] | all_queries | TEST |
+| Screening Sensitivity | 99.78% | clinical | TEST |
+| Alert Precision | 93.5% | clinical | TEST |
+
+### Results Provenance
+
+- **Protocol**: Ranking metrics (nDCG, Recall, MRR) computed on queries with evidence only (`has_evidence=1`). Classification metrics (AUROC, AUPRC) computed on all queries. See [METRIC_CONTRACT.md](docs/final/METRIC_CONTRACT.md) for definitions.
+- **Split**: TEST split (10% of posts, seed=42, post-ID disjoint)
+- **Single source of truth**: [metrics_master.json](results/paper_bundle/v1.0/metrics_master.json)
 
 ## Citation
 
@@ -187,3 +193,11 @@ The data includes:
 - Human annotations mapping sentences to criteria
 
 See [docs/DATA_AVAILABILITY.md](docs/DATA_AVAILABILITY.md) for detailed data access procedures.
+
+## Ethics
+
+This research involves analysis of social media posts from mental health communities. We follow strict privacy and ethical guidelines. See [docs/ETHICS.md](docs/ETHICS.md) for details on:
+- Data anonymization procedures
+- Privacy protections
+- Intended use and misuse prevention
+- Compliance with platform terms of service

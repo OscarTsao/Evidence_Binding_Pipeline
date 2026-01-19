@@ -34,6 +34,7 @@ class TestRequiredScriptsExist:
         "scripts/ablation/run_ablation_suite.py",
         "scripts/clinical/run_clinical_high_recall_eval.py",
         "scripts/robustness/run_multi_seed_eval.py",
+        "scripts/verification/verify_checksums.py",
     ]
 
     @pytest.mark.parametrize("script_path", REQUIRED_SCRIPTS)
@@ -53,12 +54,16 @@ class TestRequiredDocsExist:
         "CITATION.cff",
         "docs/ENVIRONMENT_SETUP.md",
         "docs/DATA_AVAILABILITY.md",
+        "docs/ETHICS.md",
         "docs/final/PAPER_REPRODUCIBILITY.md",
         "docs/final/PAPER_COMMANDS.md",
         "docs/final/METRICS_MASTER_TABLE.md",
         "docs/verification/COMPREHENSIVE_VERIFICATION_REPORT.md",
         "docs/cleanup/INVENTORY.md",
         "docs/cleanup/REMOVALS.md",
+        "results/paper_bundle/v1.0/MANIFEST.md",
+        "results/paper_bundle/v1.0/metrics_master.json",
+        "results/paper_bundle/v1.0/checksums.txt",
     ]
 
     @pytest.mark.parametrize("doc_path", REQUIRED_DOCS)

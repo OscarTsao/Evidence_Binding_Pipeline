@@ -186,7 +186,7 @@ python scripts/reporting/package_paper_bundle.py \
 
 After running all commands, verify:
 
-1. [ ] All tests pass: `pytest -q` (187 tests)
+1. [ ] All tests pass: `pytest -q` (all tests should pass)
 2. [ ] Split audit passes: No post-ID overlap
 3. [ ] Metric cross-check passes: <1% deviation
 4. [ ] Paper bundle exists: `results/paper_bundle/v1.0/MANIFEST.md`
