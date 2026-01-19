@@ -106,9 +106,10 @@ python scripts/eval_zoo_pipeline.py \
 ```
 
 Expected output:
-- nDCG@10: 0.8658 ± 0.02
-- Recall@10: 0.892 ± 0.03
-- MRR@10: 0.812 ± 0.02
+- nDCG@10: 0.8658
+- Evidence Recall@10: 0.7043
+- MRR: 0.3801
+- AUROC (NE Gate): 0.8972 [95% CI: 0.8941, 0.9003]
 
 ### Ablation Study (Table 2)
 

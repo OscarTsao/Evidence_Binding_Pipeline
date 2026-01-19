@@ -171,4 +171,19 @@ python scripts/encode_corpus.py \
 
 ## License
 
-[License details here]
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Data Availability
+
+The data used in this research is not publicly available due to privacy considerations and IRB requirements. Researchers interested in accessing the data should:
+
+1. Contact the authors with a description of the intended use
+2. Provide evidence of IRB approval (or equivalent ethics approval)
+3. Sign a data use agreement
+
+The data includes:
+- Reddit posts from mental health communities (anonymized)
+- DSM-5 MDD criteria definitions
+- Human annotations mapping sentences to criteria
+
+See [docs/DATA_AVAILABILITY.md](docs/DATA_AVAILABILITY.md) for detailed data access procedures.

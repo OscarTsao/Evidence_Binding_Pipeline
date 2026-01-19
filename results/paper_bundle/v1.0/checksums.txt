@@ -1,0 +1,37 @@
+# SHA256 Checksums for Paper Bundle v1.0
+# Generated: 2026-01-19
+# Use: sha256sum -c checksums.txt
+
+# ============================================================
+# Paper Bundle Artifacts
+# ============================================================
+
+# Core Documents
+515034c39857210a7e7c622cea82ac7f1eb156b97ceff33bf509c1ed2cd6c932  report.md
+ed2b4d316563ad38d0a47e834414d86bdb9d5e25b51911352813a5bf9f2c2145  MANIFEST.md
+a18f0ca06777618f683e0fa9930801489dde174b325ea3868a15a4f1cf417b98  summary.json
+
+# Figures
+3a44ba23b33015821a7cc36d98df311129ff33d00193337a164e11b791437a6f  figures/1_roc_curve_with_ci.png
+ad51b484386aacc1476a50cfeb1dddda74fc93189fdbaa8087dda4b38cf4b3f0  figures/2_pr_curve_with_baseline.png
+04ed2500b85303c00607b9e209efd5cdd8611a82e258751860c4c6493ce29f15  figures/3_calibration_diagram.png
+71c1a0fe272ec8b3d0c0999ec84067ae2dbfd0d3ab2ea54f0c9416e246275cc4  figures/4_confusion_matrix.png
+1533d1fa2e2818f9110112b2cd5066609d30befd1bbd543855a5c1851f593286  figures/5_per_criterion_auroc.png
+4e5612050df2de19e19f39d8734a8fba07451238ec99a87df791df39be51983f  figures/6_dynamic_k_analysis.png
+9c319733fd328a3e389d726540fb48da68ba4326e7eab59a22a2268e8ea3406b  figures/7_threshold_sensitivity.png
+e1b974265a3083c9181827b9d00be136b08a7b8f77ca57ec5f86030d01511ad0  figures/calibration_plots.png
+16d66218be2b012af3929226b97c8570919ae8fb97f7f669b20977203872c8b7  figures/component_comparison.png
+705f5315194090e83e74339711cdcda20b888612e1e4ea5be57a22867b154b36  figures/roc_pr_curves.png
+
+# ============================================================
+# Key Reproducibility Files (relative to repo root)
+# ============================================================
+
+# Configuration
+c4fbc47ed768f13c9fae751dbd551663ad1697ed1f9cb5543435d28397771032  ../../configs/default.yaml
+
+# Main Scripts
+6016eea2c32fa3af74fd869844c89d843ca7041742bc21ceb0ee1c33e752007b  ../../scripts/eval_zoo_pipeline.py
+1a40b96ccba6c003046c6a16e4faf51e26e125966fb6ec3ea74f7623f7d91ccb  ../../scripts/run_paper_reproduce.sh
+36b4df4f0f99e86aba1e555135a390d145f19cae2590e3a4de16240ea9d86d0b  ../../scripts/build_groundtruth.py
+50cd95c4849d235c64474b0864c87c1f862a2a33e76acba211b60b32a431387f  ../../scripts/build_sentence_corpus.py
