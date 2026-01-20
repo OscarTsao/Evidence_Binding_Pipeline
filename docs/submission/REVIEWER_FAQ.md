@@ -44,18 +44,18 @@ python scripts/audit_splits.py --data_dir data --seed 42 --k 5
 
 ---
 
-## Q3: Why is A.10 (Duration) performance lower than other criteria?
+## Q3: Why is A.10 (SPECIAL_CASE) performance lower than other criteria?
 
 **Response:**
 
-A.10 (Duration: 2+ weeks) has the lowest AUROC (0.66) because:
+A.10 (SPECIAL_CASE) has the lowest AUROC (0.66) because:
 
-1. **Implicit Information**: Duration is rarely stated explicitly ("I've felt this way for months")
-2. **Temporal Reasoning**: Requires inference across sentences/posts
+1. **Heterogeneous Cases**: A.10 captures expert discrimination cases that don't map directly to the 9 DSM-5 symptom criteria
+2. **Non-Standard Patterns**: These are clinical/positive discriminations identified by domain experts
 3. **Low Base Rate**: Only 5.8% positive rate (fewest examples)
-4. **Text Limitation**: Single-post analysis misses longitudinal patterns
+4. **Diverse Expressions**: Unlike specific symptoms, SPECIAL_CASE encompasses varied clinical presentations
 
-This is a known limitation documented in Section 5.2 of the paper. Future work could incorporate temporal modeling across multiple posts.
+Per the ReDSM5 taxonomy, A.10 represents expert-identified cases that fall outside standard DSM-5 MDD criteria A.1-A.9. This is a known limitation documented in Section 5.2 of the paper.
 
 ---
 

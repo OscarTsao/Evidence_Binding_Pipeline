@@ -61,7 +61,7 @@
       "A.7": {"description": "Worthlessness/Guilt", "n_positive": 311, "auroc": 0.92},
       "A.8": {"description": "Concentration Difficulty", "n_positive": 59, "auroc": 0.80},
       "A.9": {"description": "Suicidal Ideation", "n_positive": 166, "auroc": 0.95},
-      "A.10": {"description": "Duration (2+ weeks)", "n_positive": 86, "auroc": 0.66}
+      "A.10": {"description": "SPECIAL_CASE (expert discrimination cases)", "n_positive": 86, "auroc": 0.66}
     }
   },
   "ablation_summary": {

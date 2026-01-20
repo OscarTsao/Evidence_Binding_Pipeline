@@ -4,7 +4,7 @@ Ensures:
 1. Every criterion in data/eval exists in registry
 2. Registry has no duplicates
 3. Paper tables include only intended criteria
-4. A.10 is correctly identified as Duration criterion
+4. A.10 is correctly identified as SPECIAL_CASE (per ReDSM5 taxonomy)
 """
 
 import json
@@ -55,20 +55,20 @@ class TestCriteriaRegistry:
         # This test ensures we have exactly 10 criteria
         assert len(criteria) == 10, f"Expected 10 criteria, got {len(criteria)}"
 
-    def test_a10_is_duration_criterion(self, registry):
-        """A.10 should be correctly labeled as Duration criterion."""
+    def test_a10_is_special_case(self, registry):
+        """A.10 should be correctly labeled as SPECIAL_CASE (per ReDSM5 taxonomy)."""
         a10 = registry["criteria"]["A.10"]
 
-        assert "duration" in a10["short_name"].lower(), (
-            f"A.10 short_name should mention 'Duration', got: {a10['short_name']}"
+        assert "special" in a10["short_name"].lower(), (
+            f"A.10 short_name should be 'SPECIAL_CASE', got: {a10['short_name']}"
         )
 
-        assert a10.get("is_duration_criterion", False), (
-            "A.10 should have is_duration_criterion=true"
+        assert a10.get("is_special_case", False), (
+            "A.10 should have is_special_case=true"
         )
 
-        assert "2 weeks" in a10["full_description"].lower() or "two weeks" in a10["full_description"].lower(), (
-            "A.10 description should mention 2 weeks"
+        assert "expert" in a10["full_description"].lower() or "special" in a10["full_description"].lower(), (
+            "A.10 description should mention expert discrimination or special case"
         )
 
     def test_a9_is_suicidal_ideation(self, registry):
@@ -189,16 +189,16 @@ class TestPaperBundleCriteria:
             f"Bundle criteria {bundle_criteria} != Registry criteria {registry_criteria}"
         )
 
-    def test_a10_is_duration_in_bundle(self, metrics_master):
-        """A.10 should be labeled as Duration in paper bundle."""
+    def test_a10_is_special_case_in_bundle(self, metrics_master):
+        """A.10 should be labeled as SPECIAL_CASE in paper bundle."""
         a10_info = metrics_master["per_criterion_performance"]["criteria"]["A.10"]
 
-        assert "duration" in a10_info["description"].lower(), (
-            f"A.10 description should mention Duration, got: {a10_info['description']}"
+        assert "special" in a10_info["description"].lower(), (
+            f"A.10 description should mention SPECIAL_CASE, got: {a10_info['description']}"
         )
 
     def test_a10_has_lowest_auroc(self, metrics_master):
-        """A.10 (Duration) should have lowest AUROC (hardest criterion)."""
+        """A.10 (SPECIAL_CASE) should have lowest AUROC (hardest criterion)."""
         criteria = metrics_master["per_criterion_performance"]["criteria"]
 
         aurocs = {k: v["auroc"] for k, v in criteria.items()}
@@ -206,6 +206,6 @@ class TestPaperBundleCriteria:
 
         # A.10 should be among the lowest (allow some tolerance)
         assert aurocs["A.10"] == min(aurocs.values()) or aurocs["A.10"] < 0.70, (
-            f"A.10 (Duration) should have low AUROC (got {aurocs['A.10']:.2f}), "
+            f"A.10 (SPECIAL_CASE) should have low AUROC (got {aurocs['A.10']:.2f}), "
             f"lowest is {min_crit} with {min(aurocs.values()):.2f}"
         )

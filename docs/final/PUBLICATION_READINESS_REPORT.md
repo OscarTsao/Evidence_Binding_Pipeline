@@ -38,7 +38,7 @@ pytest tests/test_metrics_consistency.py -v
 
 ### What Was Fixed
 
-1. **A.10 Definition**: Clarified A.10 is "Duration (2+ weeks)" criterion, not a symptom.
+1. **A.10 Definition**: Clarified A.10 is "SPECIAL_CASE" per ReDSM5 taxonomy (expert discrimination cases).
 
 2. **Registry Created**: `configs/criteria_registry.yaml` provides canonical criterion mapping.
 
@@ -57,7 +57,7 @@ pytest tests/test_metrics_consistency.py -v
 | A.7 | Worthlessness/Guilt | 0.92 | |
 | A.8 | Concentration Difficulty | 0.80 | |
 | A.9 | Suicidal Ideation | 0.95 | Safety-critical |
-| A.10 | Duration (2+ weeks) | 0.66 | Lowest (expected) |
+| A.10 | SPECIAL_CASE | 0.66 | Lowest (expected) |
 
 ---
 
@@ -226,7 +226,7 @@ pytest -q
 
 1. **NV-Embed-v2 Environment**: Requires separate conda environment (transformers ≤4.44)
 
-2. **A.10 Performance**: Duration criterion has lowest AUROC (0.66) - expected due to difficulty extracting temporal information from text
+2. **A.10 Performance**: SPECIAL_CASE criterion has lowest AUROC (0.66) - expected due to heterogeneous nature of expert discrimination cases
 
 3. **Dense Baselines**: E5 and Contriever require GPU for reasonable speed
 

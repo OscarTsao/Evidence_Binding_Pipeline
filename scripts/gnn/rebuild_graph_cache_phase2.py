@@ -134,7 +134,7 @@ def run_pipeline_inference(
     )
     logger.info("  Loaded reranker: jina-reranker-v3")
 
-    # Criteria descriptions
+    # Criteria descriptions (per ReDSM5 taxonomy)
     criteria_descriptions = {
         "A.1": "Depressed mood most of the day",
         "A.2": "Markedly diminished interest or pleasure",
@@ -145,7 +145,7 @@ def run_pipeline_inference(
         "A.7": "Feelings of worthlessness or excessive guilt",
         "A.8": "Diminished ability to think or concentrate",
         "A.9": "Recurrent thoughts of death or suicidal ideation",
-        "A.10": "Duration of symptoms for at least 2 weeks",
+        "A.10": "SPECIAL_CASE: expert discrimination cases",  # Per ReDSM5 taxonomy
     }
 
     # Normalize embeddings for cosine similarity

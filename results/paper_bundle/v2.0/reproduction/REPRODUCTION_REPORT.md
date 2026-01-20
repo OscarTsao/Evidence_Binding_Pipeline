@@ -87,7 +87,7 @@ All SHA256 checksums verified ✅
 | A.7 | Worthlessness/Guilt | 0.92 |
 | A.8 | Concentration Difficulty | 0.80 |
 | A.9 | Suicidal Ideation | 0.95 |
-| A.10 | Duration (2+ weeks) | 0.66 |
+| A.10 | SPECIAL_CASE | 0.66 |
 
 ## 7. Evaluation Details
 

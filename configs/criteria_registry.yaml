@@ -6,11 +6,12 @@
 # Source: DSM-5 (Diagnostic and Statistical Manual of Mental Disorders, 5th Edition)
 # Section: Major Depressive Disorder (MDD) Criterion A
 #
-# Note on A.10:
+# Note on A.10 (CRITICAL - per ReDSM5 taxonomy):
 #   The DSM-5 MDD Criterion A has 9 symptom criteria (A.1-A.9).
-#   A.10 in this system represents the Duration Criterion from DSM-5 MDD,
-#   which requires symptoms to be present for at least 2 weeks.
-#   This is treated as a separate retrieval task for clinical completeness.
+#   A.10 in the ReDSM5 dataset represents SPECIAL_CASE:
+#   - Expert discrimination cases (non-DSM-5 clinical/positive discriminations)
+#   - This is NOT a duration criterion
+#   This follows the canonical definition in src/final_sc_review/constants.py
 
 criteria:
   A.1:
@@ -97,29 +98,30 @@ criteria:
     priority: high
 
   A.10:
-    short_name: "Duration (2+ weeks)"
+    short_name: "SPECIAL_CASE"
     dsm5_number: null  # Not a numbered DSM-5 criterion
     full_description: >
-      Duration criterion: The symptoms have been present for at least 2 weeks
-      (required for MDD diagnosis per DSM-5). This criterion captures temporal
-      references in user posts that indicate symptom duration.
+      SPECIAL_CASE criterion: Expert discrimination cases that represent
+      non-DSM-5 clinical or positive discriminations. Per the ReDSM5 dataset
+      taxonomy, A.10 captures cases identified by domain experts that do not
+      map directly to the standard DSM-5 symptom criteria (A.1-A.9).
     in_paper: true
     notes: >
-      This is the Duration Criterion from DSM-5 MDD diagnostic requirements.
-      It is modeled as a separate retrieval task to identify temporal markers
-      in posts that indicate symptom persistence. Lower AUROC (0.66) expected
-      due to difficulty of extracting duration information from unstructured text.
-    is_duration_criterion: true
+      Per ReDSM5 taxonomy, A.10 = SPECIAL_CASE, NOT duration.
+      This criterion captures expert-identified discriminations that fall
+      outside the standard 9 DSM-5 MDD symptoms. Lower AUROC expected
+      due to heterogeneous nature of special cases.
+    is_special_case: true
 
 # Metadata
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   last_updated: "2026-01-20"
-  source: "DSM-5"
+  source: "DSM-5 + ReDSM5"
   disorder: "Major Depressive Disorder"
   total_criteria: 10
   symptom_criteria: 9  # A.1-A.9
-  duration_criteria: 1  # A.10
+  special_case_criteria: 1  # A.10 (per ReDSM5 taxonomy)
 
 # Performance expectations
 expected_performance:
@@ -136,4 +138,4 @@ expected_performance:
   lower_auroc:  # < 0.80
     - A.5  # Psychomotor
     - A.8  # Concentration
-    - A.10 # Duration (expected lowest - hard to extract from text)
+    - A.10 # SPECIAL_CASE (expected lowest - heterogeneous expert cases)

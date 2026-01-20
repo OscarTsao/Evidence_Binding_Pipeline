@@ -80,7 +80,7 @@
         "mrr": 0.3940449933455672
       },
       "A.10": {
-        "description": "Duration (2+ weeks)",
+        "description": "SPECIAL_CASE (expert discrimination cases)",
         "n_queries": 1477,
         "n_positive": 86,
         "positive_rate": 0.05822613405551794,

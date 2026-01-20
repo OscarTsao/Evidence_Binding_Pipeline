@@ -32,7 +32,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(
 logger = logging.getLogger(__name__)
 
 
-# Criterion registry for readable names
+# Criterion registry for readable names (per ReDSM5 taxonomy)
 CRITERION_NAMES = {
     "A.1": "Depressed Mood",
     "A.2": "Anhedonia",
@@ -43,7 +43,7 @@ CRITERION_NAMES = {
     "A.7": "Worthlessness/Guilt",
     "A.8": "Concentration Difficulty",
     "A.9": "Suicidal Ideation",
-    "A.10": "Duration (2+ weeks)",
+    "A.10": "SPECIAL_CASE",  # Per ReDSM5: expert discrimination cases
 }
 
 
@@ -380,7 +380,7 @@ Evidence density = fraction of criteria with evidence per post.
 
 1. Consider threshold adjustment per criterion based on clinical priority
 2. A.9 (Suicidal Ideation) should use lower threshold to maximize recall
-3. A.10 (Duration) has lowest performance - consider specialized features for temporal extraction
+3. A.10 (SPECIAL_CASE) has lowest performance - heterogeneous expert cases are harder to detect
 
 ---
 
