@@ -1,6 +1,20 @@
-"""Training-stage HPO objective (optional)."""
+"""DEPRECATED: Basic training-stage HPO objective.
 
+Use objective_training_v2.py instead, which provides:
+- LoRA/PEFT/QLoRA support for memory efficiency
+- Enhanced gradient accumulation
+- Better checkpoint management
+
+This module is preserved for backward compatibility only.
+"""
 from __future__ import annotations
+
+import warnings
+warnings.warn(
+    "objective_training.py is deprecated. Use objective_training_v2.py instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 import time
 from dataclasses import dataclass

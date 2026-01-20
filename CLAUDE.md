@@ -11,6 +11,34 @@ This is a sentence-criterion (S-C) evidence retrieval pipeline for mental health
 - **Reranker:** Jina-Reranker-v3 (jinaai/jina-reranker-v3) - Best from 15 rerankers
 - **Performance:** nDCG@10 = 0.8658 (from 324 model combinations tested)
 
+## Conda Environment Requirements
+
+**IMPORTANT:** This project uses two conda environments due to dependency conflicts:
+
+| Environment | Purpose | Models |
+|-------------|---------|--------|
+| `nv-embed-v2` | Retriever encoding | NV-Embed-v2 (requires specific transformers version) |
+| `llmhe` | Everything else | Jina-Reranker-v3, GNN models, LLM experiments |
+
+### When to Use Each Environment
+
+```bash
+# nv-embed-v2: ONLY for encoding sentences with NV-Embed-v2 retriever
+conda run -n nv-embed-v2 python scripts/encode_corpus.py
+
+# llmhe: For all other operations
+conda run -n llmhe python scripts/eval_zoo_pipeline.py
+conda run -n llmhe python scripts/gnn/run_p3_integration.py
+conda run -n llmhe python scripts/llm/run_llm_eval.py
+```
+
+### Why Two Environments?
+
+- `nv-embed-v2`: Has older transformers that works with NV-Embed-v2 model's custom code
+- `llmhe`: Has newer transformers (4.57+) required for Jina-Reranker-v3 (qwen3 architecture)
+
+The NV-Embed-v2 embeddings are cached (`data/cache/retriever_zoo/nv-embed-v2/`), so most operations only need `llmhe`.
+
 ## Commands
 
 ### Setup
@@ -67,11 +95,24 @@ The recommended pipeline using retriever and reranker zoos:
 - `src/final_sc_review/gnn/` - GNN modules (P1-P4)
 - `src/final_sc_review/metrics/ranking.py` - Ranking metrics
 
-### GNN Modules
-- **P1:** NE Gate (no-evidence detection)
-- **P2:** Dynamic-K selection
-- **P3:** Graph Reranker
-- **P4:** Criterion-Aware GNN (AUROC=0.8972)
+### GNN Modules (`src/final_sc_review/gnn/`)
+
+| Module | Status | Description | Key Metric |
+|--------|--------|-------------|------------|
+| P1 | Deprecated | NE Gate (no-evidence detection) | AUROC=0.577 |
+| P2 | Production | Dynamic-K selection | Adaptive cutoff |
+| P3 | Production | Graph Reranker | nDCG@10 +8.6% |
+| P4 | Production | Criterion-Aware GNN | AUROC=0.8972 |
+
+**P3 Graph Reranker** uses sentence graph structure to refine reranker scores:
+- Checkpoints: `outputs/gnn_research/p3_retrained/20260120_190745/`
+- Graph cache: `data/cache/gnn/rebuild_20260120/`
+- Training: `scripts/gnn/train_p3_graph_reranker.py`
+- Evaluation: `scripts/gnn/run_p3_integration.py`
+
+### Deprecated Modules
+- `src/final_sc_review/pipeline/three_stage.py` - Use `zoo_pipeline.py` instead
+- `src/final_sc_review/hpo/objective_training.py` - Use `objective_training_v2.py` instead
 
 ## Key Invariants
 
@@ -114,3 +155,45 @@ Primary metrics:
 - Evidence Recall@K: 0.7043 (positives_only protocol)
 - MRR: 0.3801 (positives_only protocol)
 - nDCG@10: 0.8658 (positives_only protocol)
+
+## Troubleshooting
+
+### Common Issues
+
+**"model type 'qwen3' not recognized"**
+- Use `llmhe` environment (has transformers 4.57+)
+- Don't use `nv-embed-v2` env for Jina-Reranker-v3
+
+**"Unknown retriever: nvidia/NV-Embed-v2"**
+- Use short name: `nv-embed-v2` (not full HuggingFace path)
+
+**P3 checkpoint dimension mismatch**
+- P3 must be trained with same embeddings used in graph cache
+- Retrain P3 if changing retriever: `scripts/gnn/train_p3_graph_reranker.py`
+
+**Tests fail on import**
+- Ensure `from __future__` imports are first in file
+- Run `pip install -e .` to install package
+
+## Repository Structure
+
+```
+src/final_sc_review/
+├── data/           # Data I/O and schemas
+├── retriever/      # Retriever zoo (25+ models)
+├── reranker/       # Reranker zoo (15+ models)
+├── pipeline/       # ZooPipeline (recommended)
+├── gnn/            # GNN models (P1-P4)
+├── metrics/        # Ranking and classification metrics
+├── postprocessing/ # Calibration and dynamic-K
+├── hpo/            # Hyperparameter optimization
+├── llm/            # LLM integration
+├── clinical/       # Clinical gate logic
+└── utils/          # Shared utilities
+
+scripts/
+├── gnn/            # GNN training and evaluation
+├── verification/   # Metric verification and audits
+├── llm/            # LLM experiments
+└── ablation/       # Ablation studies
+```

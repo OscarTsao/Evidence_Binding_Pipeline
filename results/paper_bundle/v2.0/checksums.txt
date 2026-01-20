@@ -1,16 +1,7 @@
-# SHA256 Checksums for Paper Bundle v2.0
-# Generated: 2026-01-20
-# Verify: sha256sum -c checksums.txt
-
-# Core files
-22b3a06830d8706218c87e5fc2e9de1cf634ceaf6755774cd9a75a93fa9fc185  metrics_master.json
+f16022fd3dda889b49b602aee7096a1ddb2ab553efeead4bfaa05d5f02ceee50  metrics_master.json
 1339d602003ec91df431ae84903f8e449af98b9018c519de9bff387a39a4f3fc  summary.json
-350637c5708de3c491e76773fed47f8a712451aceaff92d607639aaca034c195  MANIFEST.md
-
-# LLM Experiments
+c6fd5567cf60c7198891b6123cd6c9d2f4ae49560577b7e15e10d71ead38af93  MANIFEST.md
 b85e9a86b5d67a0cfa65ac81e316994e6f7e980009164a6e29995f1ac7f4d7dd  llm_experiment_results.json
-
-# Tables
+d083bd7b6546cd34a02c4fa1f9af7fffbdc72764f0860fcc2a72d69e2acdcab4  tables/ablation.csv
 8e8f1246cde492ceb5b2daecc48f1af12f6ef48f84c6e9980fed6563d152c8c9  tables/main_results.csv
 f87e8f85fd3f4e0dad8951dc1824e97ea4debe2321d47fb76497f9567cb7483a  tables/per_criterion.csv
-d083bd7b6546cd34a02c4fa1f9af7fffbdc72764f0860fcc2a72d69e2acdcab4  tables/ablation.csv

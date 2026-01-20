@@ -1,6 +1,18 @@
-"""Retriever + reranker pipeline."""
+"""LEGACY: Three-stage retriever + reranker pipeline.
 
+DEPRECATED: Use ZooPipeline (zoo_pipeline.py) for new work.
+
+This module is preserved for backward compatibility with published results.
+ZooPipeline provides better performance with HPO-optimized model combinations.
+"""
 from __future__ import annotations
+
+import warnings
+warnings.warn(
+    "ThreeStagePipeline is deprecated. Use ZooPipeline instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 from dataclasses import dataclass
 from pathlib import Path

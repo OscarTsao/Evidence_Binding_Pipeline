@@ -75,26 +75,35 @@
   "gnn_research": {
     "p3_graph_reranker": {
       "description": "Graph-based score refinement using candidate sentence relationships",
-      "status": "validated",
+      "status": "production",
+      "embeddings": "nv-embed-v2 (4096-dim)",
+      "reranker": "jina-reranker-v3",
       "n_folds": 5,
-      "n_queries_evaluated": 1256,
+      "n_queries_evaluated": 1260,
       "original_metrics": {
-        "mrr": 0.4159,
-        "ndcg_at_10": 0.2996,
-        "recall_at_10": 0.6545
+        "mrr": 0.6746,
+        "ndcg_at_5": 0.6990,
+        "ndcg_at_10": 0.7330,
+        "recall_at_5": 0.8439,
+        "recall_at_10": 0.9444
       },
       "refined_metrics": {
-        "mrr": 0.5702,
-        "ndcg_at_10": 0.3854,
-        "recall_at_10": 0.8072
+        "mrr": 0.7485,
+        "ndcg_at_5": 0.7716,
+        "ndcg_at_10": 0.7959,
+        "recall_at_5": 0.8903,
+        "recall_at_10": 0.9619
       },
       "improvement": {
-        "mrr": "+15.4%",
+        "mrr": "+10.9%",
+        "ndcg_at_5": "+10.4%",
         "ndcg_at_10": "+8.6%",
-        "recall_at_10": "+15.3%"
+        "recall_at_5": "+5.5%",
+        "recall_at_10": "+1.9%"
       },
-      "note": "P3 shows significant ranking improvements. Available but not enabled by default (requires graph cache).",
-      "checkpoint_dir": "outputs/gnn_research/20260117_p3_final/20260117_030023/p3_graph_reranker"
+      "note": "P3 retrained with NV-Embed-v2 embeddings. Shows consistent improvements across all ranking metrics.",
+      "checkpoint_dir": "outputs/gnn_research/p3_retrained/20260120_190745",
+      "graph_cache": "data/cache/gnn/rebuild_20260120"
     },
     "p4_criterion_aware_gnn": {
       "description": "Criterion-aware evidence detection using per-criterion embeddings",
@@ -139,7 +148,9 @@
     "hpo_results": "outputs/hpo_inference_combos/full_results.csv",
     "llm_experiments": "outputs/llm_eval/",
     "gnn_research": "outputs/gnn_research/",
-    "p3_checkpoints": "outputs/gnn_research/20260117_p3_final/20260117_030023/p3_graph_reranker/",
+    "p3_checkpoints": "outputs/gnn_research/p3_retrained/20260120_190745/",
+    "p3_integration_results": "outputs/p3_integration/20260120_191158/",
+    "graph_cache": "data/cache/gnn/rebuild_20260120/",
     "metric_contract": "docs/METRIC_CONTRACT.md"
   }
 }

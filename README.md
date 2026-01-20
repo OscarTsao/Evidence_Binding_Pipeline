@@ -80,6 +80,11 @@ Evidence Sentences (ranked by relevance)
 - Dual-protocol metrics (positives_only + all_queries)
 - HPO-optimized over 324 model combinations
 
+**GNN Enhancements (P3 Graph Reranker):**
+- MRR: +10.9% (0.6746 → 0.7485)
+- nDCG@10: +8.6% (0.7330 → 0.7959)
+- Recall@5: +5.5% (0.8439 → 0.8903)
+
 ## Documentation
 
 | Document | Description |

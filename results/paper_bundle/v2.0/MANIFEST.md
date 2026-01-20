@@ -58,21 +58,24 @@ python scripts/verification/verify_checksums.py
 | Model | Status | Key Metric | Improvement |
 |-------|--------|------------|-------------|
 | P4 Criterion-Aware GNN | Production | AUROC 0.8972 | Primary classifier |
-| P3 Graph Reranker | Validated | MRR +15.4% | Available, not default |
+| P3 Graph Reranker | Production | nDCG@10 +8.6% | Score refinement |
 | P2 Dynamic-K | Production | - | Adaptive K selection |
 | P1 NE Gate | Deprecated | AUROC 0.577 | Replaced by P4 |
 
-### P3 Graph Reranker Details
+### P3 Graph Reranker Details (Updated 2026-01-20)
 
-P3 uses graph structure to refine reranker scores, showing significant improvements:
+P3 retrained with NV-Embed-v2 embeddings + Jina-Reranker-v3 scores:
 
-| Metric | Original | Refined | Improvement |
+| Metric | Baseline | With P3 | Improvement |
 |--------|----------|---------|-------------|
-| MRR | 0.4159 | 0.5702 | +15.4% |
-| nDCG@10 | 0.2996 | 0.3854 | +8.6% |
-| Recall@10 | 0.6545 | 0.8072 | +15.3% |
+| MRR | 0.6746 | 0.7485 | +10.9% |
+| nDCG@5 | 0.6990 | 0.7716 | +10.4% |
+| nDCG@10 | 0.7330 | 0.7959 | +8.6% |
+| Recall@5 | 0.8439 | 0.8903 | +5.5% |
+| Recall@10 | 0.9444 | 0.9619 | +1.9% |
 
-**Note:** P3 is validated but requires graph cache reconstruction for integration.
+**Checkpoints:** `outputs/gnn_research/p3_retrained/20260120_190745/`
+**Graph cache:** `data/cache/gnn/rebuild_20260120/`
 
 ## LLM Experiment Summary (2026-01-20)
 
@@ -89,8 +92,10 @@ Model: Qwen/Qwen2.5-7B-Instruct (4-bit quantization)
 - **Source data:** `outputs/final_research_eval/20260118_031312_complete/per_query.csv`
 - **HPO results:** `outputs/hpo_inference_combos/full_results.csv`
 - **GNN research:** `outputs/gnn_research/`
-- **P3 checkpoints:** `outputs/gnn_research/20260117_p3_final/20260117_030023/p3_graph_reranker/`
-- **Evaluation:** 5-fold cross-validation on 14,770 queries
+- **P3 checkpoints:** `outputs/gnn_research/p3_retrained/20260120_190745/`
+- **P3 integration results:** `outputs/p3_integration/20260120_191158/`
+- **Graph cache:** `data/cache/gnn/rebuild_20260120/`
+- **Evaluation:** 5-fold cross-validation on 14,770 queries (1,379 positive)
 
 ## Regeneration
 
