@@ -1,0 +1,72 @@
+{
+  "per_query_csv": "outputs/final_research_eval/20260118_031312_complete/per_query.csv",
+  "n_rows": 14770,
+  "recomputed_metrics": {
+    "Accuracy": 0.26018957345971566,
+    "Precision": 0.111869918699187,
+    "Recall": 0.9978245105148659,
+    "Specificity": 0.1842282129788664,
+    "F1": 0.20118429709774105,
+    "BalancedAccuracy": 0.5910263617468662,
+    "MCC": 0.14193345873330354,
+    "NPV": 0.9987854251012146,
+    "AUROC": 0.8971664916892165,
+    "AUPRC": 0.5708890931511371,
+    "Brier": 0.05541410011375871,
+    "TPR@FPR1%": 0.3110949963741842,
+    "TPR@FPR3%": 0.5061638868745467,
+    "TPR@FPR5%": 0.5721537345902828,
+    "TPR@FPR10%": 0.6635242929659173,
+    "ECE": 0.008183782672107785,
+    "MCE": 0.11863065812357731,
+    "reliability_curve": {
+      "prob_true": [
+        0.02817258883248731,
+        0.15789473684210525,
+        0.218436873747495,
+        0.4186991869918699,
+        0.4625,
+        0.5512820512820513,
+        0.6119402985074627,
+        0.7258883248730964,
+        0.82,
+        0.8311688311688312
+      ],
+      "prob_pred": [
+        0.02285487795618048,
+        0.15903864517454824,
+        0.23815503873173044,
+        0.35518418948418773,
+        0.4614779624913285,
+        0.5684959800335717,
+        0.6412052576379839,
+        0.7723352915861025,
+        0.8417883822196519,
+        0.9497994892924085
+      ]
+    }
+  },
+  "sanity_checks_passed": true,
+  "sanity_check_errors": [],
+  "comparison_passed": false,
+  "comparison_discrepancies": [
+    "Metric Accuracy not found in reported metrics",
+    "Metric Precision not found in reported metrics",
+    "Metric Recall not found in reported metrics",
+    "Metric Specificity not found in reported metrics",
+    "Metric F1 not found in reported metrics",
+    "Metric BalancedAccuracy not found in reported metrics",
+    "Metric MCC not found in reported metrics",
+    "Metric NPV not found in reported metrics",
+    "Metric AUROC not found in reported metrics",
+    "Metric AUPRC not found in reported metrics",
+    "Metric Brier not found in reported metrics",
+    "Metric TPR@FPR1% not found in reported metrics",
+    "Metric TPR@FPR3% not found in reported metrics",
+    "Metric TPR@FPR5% not found in reported metrics",
+    "Metric TPR@FPR10% not found in reported metrics",
+    "Metric ECE not found in reported metrics",
+    "Metric MCE not found in reported metrics",
+    "Metric reliability_curve not found in reported metrics"
+  ]
+}
