@@ -72,6 +72,48 @@
       {"retriever": "bge-m3", "reranker": "jina-reranker-v3", "ndcg_at_10": 0.8395}
     ]
   },
+  "gnn_research": {
+    "p3_graph_reranker": {
+      "description": "Graph-based score refinement using candidate sentence relationships",
+      "status": "validated",
+      "n_folds": 5,
+      "n_queries_evaluated": 1256,
+      "original_metrics": {
+        "mrr": 0.4159,
+        "ndcg_at_10": 0.2996,
+        "recall_at_10": 0.6545
+      },
+      "refined_metrics": {
+        "mrr": 0.5702,
+        "ndcg_at_10": 0.3854,
+        "recall_at_10": 0.8072
+      },
+      "improvement": {
+        "mrr": "+15.4%",
+        "ndcg_at_10": "+8.6%",
+        "recall_at_10": "+15.3%"
+      },
+      "note": "P3 shows significant ranking improvements. Available but not enabled by default (requires graph cache).",
+      "checkpoint_dir": "outputs/gnn_research/20260117_p3_final/20260117_030023/p3_graph_reranker"
+    },
+    "p4_criterion_aware_gnn": {
+      "description": "Criterion-aware evidence detection using per-criterion embeddings",
+      "status": "production",
+      "auroc": 0.8972,
+      "note": "Used in production for evidence detection"
+    },
+    "p2_dynamic_k": {
+      "description": "Adaptive K selection based on score distribution",
+      "status": "production",
+      "note": "Used in production for dynamic retrieval cutoff"
+    },
+    "p1_ne_gate": {
+      "description": "No-evidence gate for query filtering",
+      "status": "deprecated",
+      "auroc": 0.577,
+      "note": "Replaced by P4 which achieves significantly better performance"
+    }
+  },
   "llm_experiments": {
     "date": "2026-01-20",
     "model": "Qwen/Qwen2.5-7B-Instruct",
@@ -96,6 +138,8 @@
     "source_file": "outputs/final_research_eval/20260118_031312_complete/per_query.csv",
     "hpo_results": "outputs/hpo_inference_combos/full_results.csv",
     "llm_experiments": "outputs/llm_eval/",
+    "gnn_research": "outputs/gnn_research/",
+    "p3_checkpoints": "outputs/gnn_research/20260117_p3_final/20260117_030023/p3_graph_reranker/",
     "metric_contract": "docs/METRIC_CONTRACT.md"
   }
 }
