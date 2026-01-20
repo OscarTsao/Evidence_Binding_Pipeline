@@ -59,9 +59,9 @@ class TestRequiredDocsExist:
         "docs/ETHICS.md",
         "docs/REPRODUCIBILITY.md",
         "docs/METRIC_CONTRACT.md",
-        "results/paper_bundle/v2.0/MANIFEST.md",
-        "results/paper_bundle/v2.0/metrics_master.json",
-        "results/paper_bundle/v2.0/checksums.txt",
+        "results/paper_bundle/v3.0/MANIFEST.md",
+        "results/paper_bundle/v3.0/metrics_master.json",
+        "results/paper_bundle/v3.0/checksums.txt",
     ]
 
     @pytest.mark.parametrize("doc_path", REQUIRED_DOCS)

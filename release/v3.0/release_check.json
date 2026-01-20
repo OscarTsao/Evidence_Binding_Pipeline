@@ -1,0 +1,21 @@
+{
+  "git": {
+    "branch": "master",
+    "commit": "3f3d3e7e",
+    "uncommitted_changes": 20,
+    "clean": false
+  },
+  "files": {
+    "passed": true,
+    "missing": [],
+    "checked": 11
+  },
+  "tests": {
+    "skipped": true
+  },
+  "checksums": {
+    "passed": true,
+    "output": "Verifying checksums from: /home/user/YuNing/Evidence_Binding_Pipeline/results/paper_bundle/v3.0/checksums.txt\n------------------------------------------------------------\n------------------------------------------------------------\nResults: 5 passed, 0 failed, 0 missing\n\nVERIFICATION PASSED"
+  },
+  "release_notes": "Generated"
+}

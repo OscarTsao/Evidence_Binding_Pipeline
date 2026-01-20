@@ -1,262 +1,403 @@
 #!/usr/bin/env python3
 """Multi-seed robustness evaluation.
 
-Runs the evaluation pipeline with multiple random seeds to assess:
-1. Stability of split stratification
+Runs evaluation with multiple random seeds to assess:
+1. Stability of metric estimates across different train/test splits
 2. Variance in reported metrics
 3. Confidence intervals for all metrics
 
+Two modes:
+1. Bootstrap mode (default): Fixed model, bootstrap CIs over queries/posts
+2. Resplit mode: Regenerate splits per seed (more expensive, requires re-evaluation)
+
 Usage:
+    # Bootstrap mode (recommended - uses cached evaluation)
+    python scripts/robustness/run_multi_seed_eval.py \
+        --per_query outputs/final_research_eval/20260118_031312_complete/per_query.csv \
+        --output outputs/robustness/ \
+        --mode bootstrap
+
+    # Resplit mode (requires running evaluation per seed)
     python scripts/robustness/run_multi_seed_eval.py \
         --config configs/default.yaml \
-        --seeds 42 123 456 789 1024 \
-        --output outputs/robustness/
+        --seeds 11 21 42 84 168 \
+        --output outputs/robustness/ \
+        --mode resplit
 """
 
 import argparse
 import json
 import logging
+import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
-import yaml
+import pandas as pd
 
-logging.basicConfig(level=logging.INFO)
+# Add src to path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
+
+from final_sc_review.metrics.compute_metrics import (
+    compute_all_metrics,
+    compute_classification_metrics,
+    compute_ranking_metrics_from_csv,
+    bootstrap_ci,
+)
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 logger = logging.getLogger(__name__)
 
 
-def compute_confidence_interval(
-    values: List[float], confidence: float = 0.95
-) -> Dict[str, float]:
-    """Compute confidence interval using bootstrap method.
+def run_bootstrap_robustness(
+    per_query_csv: Path,
+    output_dir: Path,
+    n_bootstrap: int = 2000,
+    seeds: List[int] = None,
+    unit: str = "post",
+) -> Dict:
+    """Run bootstrap robustness analysis on existing evaluation results.
+
+    This is the recommended mode: it uses the canonical evaluation output
+    and computes bootstrap CIs by resampling queries or posts.
 
     Args:
-        values: List of metric values from different seeds
-        confidence: Confidence level (default 0.95 for 95% CI)
+        per_query_csv: Path to per_query.csv from evaluation
+        output_dir: Output directory
+        n_bootstrap: Number of bootstrap iterations
+        seeds: List of seeds for reproducibility check
+        unit: Resampling unit ("query" or "post")
 
     Returns:
-        Dictionary with mean, std, ci_lower, ci_upper
+        Dictionary with robustness results
     """
-    values = np.array(values)
-    n = len(values)
+    logger.info("=" * 80)
+    logger.info("BOOTSTRAP ROBUSTNESS ANALYSIS")
+    logger.info(f"Source: {per_query_csv}")
+    logger.info(f"Bootstrap iterations: {n_bootstrap}")
+    logger.info(f"Resampling unit: {unit}")
+    logger.info("=" * 80)
 
-    if n < 2:
-        return {
-            "mean": float(values[0]) if n == 1 else 0.0,
-            "std": 0.0,
-            "ci_lower": float(values[0]) if n == 1 else 0.0,
-            "ci_upper": float(values[0]) if n == 1 else 0.0,
-            "n_samples": n
-        }
+    # Load data
+    df = pd.read_csv(per_query_csv)
+    logger.info(f"Loaded {len(df)} queries")
 
-    mean = float(np.mean(values))
-    std = float(np.std(values, ddof=1))
-
-    # Bootstrap confidence interval
-    n_bootstrap = 10000
-    bootstrap_means = []
-    rng = np.random.default_rng(42)  # Fixed seed for reproducibility
-
-    for _ in range(n_bootstrap):
-        sample = rng.choice(values, size=n, replace=True)
-        bootstrap_means.append(np.mean(sample))
-
-    bootstrap_means = np.array(bootstrap_means)
-    alpha = 1 - confidence
-    ci_lower = float(np.percentile(bootstrap_means, 100 * alpha / 2))
-    ci_upper = float(np.percentile(bootstrap_means, 100 * (1 - alpha / 2)))
-
-    return {
-        "mean": mean,
-        "std": std,
-        "ci_lower": ci_lower,
-        "ci_upper": ci_upper,
-        "n_samples": n
+    # Key metrics to analyze
+    metrics_config = {
+        # Classification metrics (all_queries)
+        "auroc": {
+            "fn": lambda d: compute_classification_metrics(d).get("auroc", np.nan),
+            "protocol": "all_queries",
+        },
+        "auprc": {
+            "fn": lambda d: compute_classification_metrics(d).get("auprc", np.nan),
+            "protocol": "all_queries",
+        },
+        # Ranking metrics (positives_only) - computed from pre-computed columns
+        "evidence_recall_at_k": {
+            "fn": lambda d: d[d["has_evidence_gold"] == 1]["evidence_recall_at_k"].dropna().mean(),
+            "protocol": "positives_only",
+        },
+        "mrr": {
+            "fn": lambda d: d[d["has_evidence_gold"] == 1]["mrr"].dropna().mean(),
+            "protocol": "positives_only",
+        },
     }
 
+    # Compute point estimates
+    point_estimates = {}
+    for metric_name, config in metrics_config.items():
+        try:
+            point_estimates[metric_name] = config["fn"](df)
+        except Exception as e:
+            logger.warning(f"Failed to compute {metric_name}: {e}")
+            point_estimates[metric_name] = np.nan
 
-def run_single_seed_eval(
+    logger.info("Point estimates:")
+    for name, val in point_estimates.items():
+        logger.info(f"  {name}: {val:.4f}")
+
+    # Compute bootstrap CIs
+    results = {}
+    base_seed = 42
+
+    for metric_name, config in metrics_config.items():
+        logger.info(f"Computing bootstrap CI for {metric_name}...")
+
+        try:
+            if unit == "post":
+                ci = bootstrap_ci(
+                    config["fn"],
+                    df,
+                    n_bootstrap=n_bootstrap,
+                    seed=base_seed,
+                    unit="post",
+                    unit_col="post_id",
+                )
+            else:
+                ci = bootstrap_ci(
+                    config["fn"],
+                    df,
+                    n_bootstrap=n_bootstrap,
+                    seed=base_seed,
+                    unit="query",
+                )
+
+            results[metric_name] = {
+                "value": point_estimates[metric_name],
+                "mean": ci["mean"],
+                "std": ci["std"],
+                "ci_95_lower": ci["ci_lower"],
+                "ci_95_upper": ci["ci_upper"],
+                "protocol": config["protocol"],
+                "n_bootstrap": n_bootstrap,
+            }
+
+            logger.info(f"  {metric_name}: {ci['mean']:.4f} [{ci['ci_lower']:.4f}, {ci['ci_upper']:.4f}]")
+
+        except Exception as e:
+            logger.warning(f"Failed bootstrap for {metric_name}: {e}")
+            results[metric_name] = {"error": str(e)}
+
+    # Check stability across different seeds
+    if seeds:
+        logger.info(f"Checking reproducibility across seeds: {seeds}")
+        seed_variation = {}
+
+        for metric_name, config in metrics_config.items():
+            seed_values = []
+            for seed in seeds:
+                ci = bootstrap_ci(
+                    config["fn"],
+                    df,
+                    n_bootstrap=100,  # Fewer for speed
+                    seed=seed,
+                    unit=unit,
+                    unit_col="post_id" if unit == "post" else None,
+                )
+                seed_values.append(ci["mean"])
+
+            seed_variation[metric_name] = {
+                "values": seed_values,
+                "mean": float(np.mean(seed_values)),
+                "std": float(np.std(seed_values)),
+                "cv_pct": float(np.std(seed_values) / np.mean(seed_values) * 100) if np.mean(seed_values) > 0 else 0,
+            }
+
+        results["seed_variation"] = seed_variation
+
+    # Save results
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    with open(output_dir / "robustness_results.json", "w") as f:
+        json.dump({
+            "timestamp": datetime.now().isoformat(),
+            "source": str(per_query_csv),
+            "n_queries": len(df),
+            "n_bootstrap": n_bootstrap,
+            "resampling_unit": unit,
+            "metrics": results,
+        }, f, indent=2, default=str)
+
+    # Generate report
+    generate_robustness_report(results, point_estimates, output_dir)
+
+    # Create CSV summary
+    summary_rows = []
+    for metric_name, data in results.items():
+        if isinstance(data, dict) and "value" in data:
+            summary_rows.append({
+                "metric": metric_name,
+                "value": data["value"],
+                "ci_95_lower": data["ci_95_lower"],
+                "ci_95_upper": data["ci_95_upper"],
+                "std": data["std"],
+                "protocol": data["protocol"],
+            })
+
+    if summary_rows:
+        pd.DataFrame(summary_rows).to_csv(output_dir / "robustness_summary.csv", index=False)
+
+    logger.info(f"Results saved to: {output_dir}")
+    return results
+
+
+def run_resplit_robustness(
     config_path: Path,
-    seed: int,
     output_dir: Path,
-    split: str = "test"
-) -> Optional[Dict]:
-    """Run evaluation with a specific seed.
+    seeds: List[int],
+) -> Dict:
+    """Run evaluation with different train/test splits.
+
+    This mode regenerates splits per seed and runs full evaluation.
+    More expensive but shows true split variation.
 
     Args:
         config_path: Path to config file
-        seed: Random seed for split generation
-        output_dir: Output directory for this seed's results
-        split: Which split to evaluate on
+        output_dir: Output directory
+        seeds: List of seeds for splits
 
     Returns:
-        Dictionary of metrics or None if failed
+        Dictionary with results per seed
     """
-    try:
-        # Load and modify config with new seed
-        with open(config_path) as f:
-            config = yaml.safe_load(f)
+    logger.info("=" * 80)
+    logger.info("RESPLIT ROBUSTNESS EVALUATION")
+    logger.info(f"Seeds: {seeds}")
+    logger.info("=" * 80)
 
-        # Update seed
-        if "split" not in config:
-            config["split"] = {}
-        config["split"]["seed"] = seed
+    # This requires the full evaluation pipeline
+    # For now, we check if cached results exist for each seed
 
-        # Create seed-specific output directory
-        seed_output_dir = output_dir / f"seed_{seed}"
-        seed_output_dir.mkdir(parents=True, exist_ok=True)
+    import yaml
+    with open(config_path) as f:
+        config = yaml.safe_load(f)
 
-        # Save modified config
-        seed_config_path = seed_output_dir / "config.yaml"
-        with open(seed_config_path, "w") as f:
-            yaml.dump(config, f)
+    results_per_seed = {}
 
-        # Import and run evaluation
-        # Note: This imports the evaluation module and runs it
-        # In a real implementation, you would call the actual eval function
+    for seed in seeds:
+        logger.info(f"\nEvaluating seed {seed}...")
 
-        logger.info(f"Running evaluation with seed={seed}")
+        # Check for cached results
+        seed_output = output_dir / f"seed_{seed}"
+        cached_csv = seed_output / "per_query.csv"
 
-        # Placeholder for actual evaluation
-        # In production, import and call:
-        # from final_sc_review.pipeline.zoo_pipeline import ZooPipeline
-        # from final_sc_review.data.splits import create_post_id_disjoint_splits
+        if cached_csv.exists():
+            logger.info(f"  Loading cached results from {cached_csv}")
+            df = pd.read_csv(cached_csv)
 
-        # For now, return simulated results based on seed variation
-        # Real implementation would run actual evaluation
+            class_metrics = compute_classification_metrics(df)
+            rank_metrics = compute_ranking_metrics_from_csv(df)
 
-        # Simulate realistic metric variation (within expected ranges)
-        rng = np.random.default_rng(seed)
-        base_metrics = {
-            "ndcg_at_10": 0.8658,
-            "recall_at_10": 0.7043,
-            "mrr": 0.3801,
-            "auroc": 0.8972,
-            "auprc": 0.7043,
-        }
+            results_per_seed[seed] = {
+                "auroc": class_metrics.get("auroc"),
+                "auprc": class_metrics.get("auprc"),
+                "evidence_recall_at_k": rank_metrics.get("evidence_recall_at_k"),
+                "mrr": rank_metrics.get("mrr"),
+                "n_queries": len(df),
+            }
+        else:
+            logger.warning(f"  No cached results for seed {seed}. Run evaluation first:")
+            logger.warning(f"    python scripts/eval_zoo_pipeline.py --config {config_path} --seed {seed} --output {seed_output}")
+            results_per_seed[seed] = {"error": "No cached results"}
 
-        # Add realistic noise (±2% relative variation)
-        metrics = {}
-        for name, base_value in base_metrics.items():
-            noise = rng.normal(0, 0.01)  # ~1% std
-            metrics[name] = float(np.clip(base_value * (1 + noise), 0, 1))
-
-        # Save per-seed results
-        results = {
-            "seed": seed,
-            "split": split,
-            "metrics": metrics,
-            "timestamp": datetime.now().isoformat()
-        }
-
-        with open(seed_output_dir / "results.json", "w") as f:
-            json.dump(results, f, indent=2)
-
-        logger.info(f"Seed {seed}: nDCG@10={metrics['ndcg_at_10']:.4f}, "
-                   f"AUROC={metrics['auroc']:.4f}")
-
-        return metrics
-
-    except Exception as e:
-        logger.error(f"Failed to run seed {seed}: {e}")
-        return None
-
-
-def aggregate_results(
-    all_results: List[Dict],
-    output_dir: Path
-) -> Dict:
-    """Aggregate results across all seeds.
-
-    Args:
-        all_results: List of metric dictionaries from each seed
-        output_dir: Directory to save aggregated results
-
-    Returns:
-        Dictionary with aggregated statistics
-    """
-    if not all_results:
-        raise ValueError("No results to aggregate")
-
-    # Get all metric names
-    metric_names = list(all_results[0].keys())
-
-    # Compute statistics for each metric
+    # Aggregate across seeds
+    metrics_to_aggregate = ["auroc", "auprc", "evidence_recall_at_k", "mrr"]
     aggregated = {}
-    for metric in metric_names:
-        values = [r[metric] for r in all_results if metric in r]
-        aggregated[metric] = compute_confidence_interval(values)
 
-    return aggregated
+    for metric in metrics_to_aggregate:
+        values = [r[metric] for r in results_per_seed.values() if metric in r and r[metric] is not None]
+        if values:
+            aggregated[metric] = {
+                "mean": float(np.mean(values)),
+                "std": float(np.std(values)),
+                "min": float(np.min(values)),
+                "max": float(np.max(values)),
+                "cv_pct": float(np.std(values) / np.mean(values) * 100) if np.mean(values) > 0 else 0,
+                "n_seeds": len(values),
+            }
+
+    # Save results
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    with open(output_dir / "resplit_results.json", "w") as f:
+        json.dump({
+            "timestamp": datetime.now().isoformat(),
+            "seeds": seeds,
+            "per_seed": results_per_seed,
+            "aggregated": aggregated,
+        }, f, indent=2, default=str)
+
+    logger.info(f"Results saved to: {output_dir}")
+    return {"per_seed": results_per_seed, "aggregated": aggregated}
 
 
 def generate_robustness_report(
-    aggregated: Dict,
-    seeds: List[int],
-    output_dir: Path
+    results: Dict,
+    point_estimates: Dict,
+    output_dir: Path,
 ) -> None:
-    """Generate markdown report of robustness analysis.
-
-    Args:
-        aggregated: Aggregated statistics
-        seeds: List of seeds used
-        output_dir: Output directory
-    """
-    report = f"""# Multi-Seed Robustness Analysis
+    """Generate markdown report of robustness analysis."""
+    report = f"""# Robustness Analysis Report
 
 Generated: {datetime.now().isoformat()}
-Seeds evaluated: {seeds}
-Number of seeds: {len(seeds)}
 
 ---
 
-## Summary Statistics
+## Executive Summary
 
-| Metric | Mean | Std | 95% CI Lower | 95% CI Upper |
-|--------|------|-----|--------------|--------------|
+This report presents bootstrap confidence intervals for key metrics,
+demonstrating the stability and reliability of the evaluation results.
+
+---
+
+## Metric Confidence Intervals (95%)
+
+| Metric | Value | 95% CI Lower | 95% CI Upper | Std | Protocol |
+|--------|-------|--------------|--------------|-----|----------|
 """
 
-    for metric, stats in aggregated.items():
-        report += f"| **{metric}** | {stats['mean']:.4f} | {stats['std']:.4f} | {stats['ci_lower']:.4f} | {stats['ci_upper']:.4f} |\n"
+    for metric_name, data in results.items():
+        if isinstance(data, dict) and "value" in data:
+            report += (
+                f"| **{metric_name}** | {data['value']:.4f} | "
+                f"{data['ci_95_lower']:.4f} | {data['ci_95_upper']:.4f} | "
+                f"{data['std']:.4f} | {data['protocol']} |\n"
+            )
 
     report += """
 ---
 
-## Interpretation
-
-### Stability Assessment
+## Stability Assessment
 
 """
 
-    # Assess stability (coefficient of variation)
-    for metric, stats in aggregated.items():
-        cv = (stats['std'] / stats['mean'] * 100) if stats['mean'] > 0 else 0
-        stability = "Excellent" if cv < 1 else "Good" if cv < 2 else "Moderate" if cv < 5 else "Poor"
-        report += f"- **{metric}**: CV = {cv:.2f}% ({stability} stability)\n"
+    for metric_name, data in results.items():
+        if isinstance(data, dict) and "std" in data:
+            cv = data["std"] / data["value"] * 100 if data["value"] > 0 else 0
+            stability = "Excellent" if cv < 1 else "Good" if cv < 2 else "Moderate" if cv < 5 else "Poor"
+            report += f"- **{metric_name}**: CV = {cv:.2f}% ({stability} stability)\n"
+
+    # Seed variation if present
+    if "seed_variation" in results:
+        report += """
+---
+
+## Seed Reproducibility Check
+
+| Metric | Mean | Std | CV% |
+|--------|------|-----|-----|
+"""
+        for metric_name, data in results["seed_variation"].items():
+            report += f"| {metric_name} | {data['mean']:.4f} | {data['std']:.4f} | {data['cv_pct']:.2f}% |\n"
 
     report += """
-### Key Findings
-
-1. **Split Variation**: Metrics show minimal variation across random splits
-2. **Reproducibility**: Results are stable within reported confidence intervals
-3. **Recommendation**: Seed 42 (default) produces representative results
-
 ---
 
 ## Methodology
 
-- Post-ID disjoint splits ensure no data leakage
-- Each seed generates different train/val/test partitions
-- Bootstrap (n=10,000) used for confidence intervals
-- All splits maintain same train/val/test ratios (80/10/10)
+- **Bootstrap method**: Non-parametric bootstrap with replacement
+- **Confidence level**: 95% (percentile method)
+- **Resampling unit**: Post-level (preserves within-post correlation)
+- **Iterations**: 2,000 bootstrap samples
+
+### Interpretation
+
+- **Narrow CIs**: High confidence in reported metrics
+- **CV < 2%**: Excellent stability across resamples
+- **Post-level resampling**: More conservative than query-level
 
 ---
 
-## Raw Data
+## Reproducibility
 
-See individual seed results in `seed_*/results.json`
+```bash
+python scripts/robustness/run_multi_seed_eval.py \\
+    --per_query outputs/final_research_eval/20260118_031312_complete/per_query.csv \\
+    --output outputs/robustness/ \\
+    --mode bootstrap \\
+    --n_bootstrap 2000
+```
 """
 
     with open(output_dir / "robustness_report.md", "w") as f:
@@ -266,21 +407,32 @@ See individual seed results in `seed_*/results.json`
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Multi-seed robustness evaluation"
+    parser = argparse.ArgumentParser(description="Multi-seed robustness evaluation")
+    parser.add_argument(
+        "--mode",
+        type=str,
+        default="bootstrap",
+        choices=["bootstrap", "resplit"],
+        help="Evaluation mode: bootstrap (recommended) or resplit"
+    )
+    parser.add_argument(
+        "--per_query",
+        type=Path,
+        default=Path("outputs/final_research_eval/20260118_031312_complete/per_query.csv"),
+        help="Path to per_query.csv (for bootstrap mode)"
     )
     parser.add_argument(
         "--config",
         type=Path,
         default=Path("configs/default.yaml"),
-        help="Path to config file"
+        help="Path to config file (for resplit mode)"
     )
     parser.add_argument(
         "--seeds",
         type=int,
         nargs="+",
-        default=[42, 123, 456, 789, 1024],
-        help="Random seeds to evaluate"
+        default=[11, 21, 42, 84, 168],
+        help="Random seeds for reproducibility check"
     )
     parser.add_argument(
         "--output",
@@ -289,63 +441,61 @@ def main():
         help="Output directory"
     )
     parser.add_argument(
-        "--split",
+        "--n_bootstrap",
+        type=int,
+        default=2000,
+        help="Number of bootstrap iterations"
+    )
+    parser.add_argument(
+        "--unit",
         type=str,
-        default="test",
-        choices=["val", "test"],
-        help="Split to evaluate"
+        default="post",
+        choices=["query", "post"],
+        help="Resampling unit for bootstrap"
     )
 
     args = parser.parse_args()
 
-    # Create output directory
+    # Create timestamped output directory
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_dir = args.output / timestamp
-    output_dir.mkdir(parents=True, exist_ok=True)
 
-    logger.info(f"Starting multi-seed evaluation with seeds: {args.seeds}")
-    logger.info(f"Output directory: {output_dir}")
+    if args.mode == "bootstrap":
+        if not args.per_query.exists():
+            logger.error(f"per_query.csv not found: {args.per_query}")
+            return 1
 
-    # Run evaluation for each seed
-    all_results = []
-    for seed in args.seeds:
-        result = run_single_seed_eval(
-            config_path=args.config,
-            seed=seed,
+        results = run_bootstrap_robustness(
+            per_query_csv=args.per_query,
             output_dir=output_dir,
-            split=args.split
+            n_bootstrap=args.n_bootstrap,
+            seeds=args.seeds,
+            unit=args.unit,
         )
-        if result:
-            all_results.append(result)
-
-    if not all_results:
-        logger.error("No successful evaluations")
-        return 1
-
-    # Aggregate results
-    logger.info("Aggregating results...")
-    aggregated = aggregate_results(all_results, output_dir)
-
-    # Save aggregated results
-    with open(output_dir / "aggregated_results.json", "w") as f:
-        json.dump({
-            "seeds": args.seeds,
-            "n_successful": len(all_results),
-            "metrics": aggregated,
-            "timestamp": datetime.now().isoformat()
-        }, f, indent=2)
-
-    # Generate report
-    generate_robustness_report(aggregated, args.seeds, output_dir)
+    else:
+        results = run_resplit_robustness(
+            config_path=args.config,
+            output_dir=output_dir,
+            seeds=args.seeds,
+        )
 
     # Print summary
     print("\n" + "=" * 60)
-    print("Multi-Seed Robustness Results")
+    print("Robustness Analysis Complete")
     print("=" * 60)
-    for metric, stats in aggregated.items():
-        print(f"{metric}: {stats['mean']:.4f} ± {stats['std']:.4f} "
-              f"[95% CI: {stats['ci_lower']:.4f}, {stats['ci_upper']:.4f}]")
+
+    if args.mode == "bootstrap":
+        for metric_name, data in results.items():
+            if isinstance(data, dict) and "value" in data:
+                print(f"{metric_name}: {data['value']:.4f} "
+                      f"[95% CI: {data['ci_95_lower']:.4f}, {data['ci_95_upper']:.4f}]")
+    else:
+        if "aggregated" in results:
+            for metric_name, data in results["aggregated"].items():
+                print(f"{metric_name}: {data['mean']:.4f} ± {data['std']:.4f}")
+
     print("=" * 60)
+    print(f"Results saved to: {output_dir}")
 
     return 0
 

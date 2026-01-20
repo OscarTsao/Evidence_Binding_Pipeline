@@ -1,0 +1,139 @@
+# DSM-5 Major Depressive Disorder Criteria Registry
+#
+# This is the CANONICAL criterion mapping for the Evidence Binding Pipeline.
+# All code, evaluation scripts, and paper tables MUST reference this registry.
+#
+# Source: DSM-5 (Diagnostic and Statistical Manual of Mental Disorders, 5th Edition)
+# Section: Major Depressive Disorder (MDD) Criterion A
+#
+# Note on A.10:
+#   The DSM-5 MDD Criterion A has 9 symptom criteria (A.1-A.9).
+#   A.10 in this system represents the Duration Criterion from DSM-5 MDD,
+#   which requires symptoms to be present for at least 2 weeks.
+#   This is treated as a separate retrieval task for clinical completeness.
+
+criteria:
+  A.1:
+    short_name: "Depressed Mood"
+    dsm5_number: 1
+    full_description: >
+      Depressed mood most of the day, nearly every day, as indicated by either
+      subjective report (e.g., feels sad, empty, hopeless) or observation made
+      by others (e.g., appears tearful).
+    in_paper: true
+    notes: "Core criterion - most common presenting symptom"
+
+  A.2:
+    short_name: "Anhedonia"
+    dsm5_number: 2
+    full_description: >
+      Markedly diminished interest or pleasure in all, or almost all, activities
+      most of the day, nearly every day (as indicated by either subjective account
+      or observation).
+    in_paper: true
+    notes: "Core criterion - often co-occurs with A.1"
+
+  A.3:
+    short_name: "Weight/Appetite Change"
+    dsm5_number: 3
+    full_description: >
+      Significant weight loss when not dieting or weight gain (e.g., a change of
+      more than 5% of body weight in a month), or decrease or increase in appetite
+      nearly every day.
+    in_paper: true
+    notes: "Can manifest as either increase or decrease"
+
+  A.4:
+    short_name: "Sleep Disturbance"
+    dsm5_number: 4
+    full_description: >
+      Insomnia or hypersomnia nearly every day.
+    in_paper: true
+    notes: "Commonly reported symptom"
+
+  A.5:
+    short_name: "Psychomotor Changes"
+    dsm5_number: 5
+    full_description: >
+      Psychomotor agitation or retardation nearly every day (observable by others,
+      not merely subjective feelings of restlessness or being slowed down).
+    in_paper: true
+    notes: "Must be observable, not just subjective"
+
+  A.6:
+    short_name: "Fatigue/Loss of Energy"
+    dsm5_number: 6
+    full_description: >
+      Fatigue or loss of energy nearly every day.
+    in_paper: true
+    notes: "Highly prevalent in depression"
+
+  A.7:
+    short_name: "Worthlessness/Guilt"
+    dsm5_number: 7
+    full_description: >
+      Feelings of worthlessness or excessive or inappropriate guilt (which may be
+      delusional) nearly every day (not merely self-reproach or guilt about being sick).
+    in_paper: true
+    notes: "Cognitive symptom - may be delusional in severe cases"
+
+  A.8:
+    short_name: "Concentration Difficulty"
+    dsm5_number: 8
+    full_description: >
+      Diminished ability to think or concentrate, or indecisiveness, nearly every day
+      (either by subjective account or as observed by others).
+    in_paper: true
+    notes: "Cognitive symptom affecting daily function"
+
+  A.9:
+    short_name: "Suicidal Ideation"
+    dsm5_number: 9
+    full_description: >
+      Recurrent thoughts of death (not just fear of dying), recurrent suicidal ideation
+      without a specific plan, or a suicide attempt or a specific plan for committing suicide.
+    in_paper: true
+    notes: "Critical safety criterion - requires clinical attention"
+    priority: high
+
+  A.10:
+    short_name: "Duration (2+ weeks)"
+    dsm5_number: null  # Not a numbered DSM-5 criterion
+    full_description: >
+      Duration criterion: The symptoms have been present for at least 2 weeks
+      (required for MDD diagnosis per DSM-5). This criterion captures temporal
+      references in user posts that indicate symptom duration.
+    in_paper: true
+    notes: >
+      This is the Duration Criterion from DSM-5 MDD diagnostic requirements.
+      It is modeled as a separate retrieval task to identify temporal markers
+      in posts that indicate symptom persistence. Lower AUROC (0.66) expected
+      due to difficulty of extracting duration information from unstructured text.
+    is_duration_criterion: true
+
+# Metadata
+metadata:
+  version: "1.0.0"
+  last_updated: "2026-01-20"
+  source: "DSM-5"
+  disorder: "Major Depressive Disorder"
+  total_criteria: 10
+  symptom_criteria: 9  # A.1-A.9
+  duration_criteria: 1  # A.10
+
+# Performance expectations
+expected_performance:
+  # Per-criterion AUROC ranges (classification, all_queries protocol)
+  high_auroc:  # >= 0.90
+    - A.6  # Fatigue
+    - A.7  # Guilt
+    - A.9  # Suicidal Ideation
+    - A.3  # Weight
+  medium_auroc:  # 0.80-0.90
+    - A.1  # Depressed Mood
+    - A.2  # Anhedonia
+    - A.4  # Sleep
+  lower_auroc:  # < 0.80
+    - A.5  # Psychomotor
+    - A.8  # Concentration
+    - A.10 # Duration (expected lowest - hard to extract from text)

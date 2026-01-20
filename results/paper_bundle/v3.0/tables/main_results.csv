@@ -1,0 +1,9 @@
+metric,value,ci_95_lower,ci_95_upper,protocol,split
+positive_rate,0.09336492890995261,,,positives_only,TEST
+evidence_recall_at_k,0.7042905488595139,0.681265711999938,0.7267373701556166,positives_only,TEST
+mrr,0.3801135984766998,,,positives_only,TEST
+evidence_precision_at_k,0.2262708693796781,,,positives_only,TEST
+auroc,0.8971664916892165,0.8883114223282629,0.9055821615800622,all_queries,TEST
+auprc,0.5708890931511371,0.5433439414224643,0.5995963145740124,all_queries,TEST
+ece,0.008552057825604385,,,all_queries,TEST
+brier_score,0.05541410011375871,,,all_queries,TEST

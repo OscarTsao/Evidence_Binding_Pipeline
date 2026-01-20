@@ -679,44 +679,256 @@ def cross_check_ranking_metrics(
     return output_data
 
 
+def cross_check_bundle(bundle_dir: Path, output_file: Path = None) -> int:
+    """Cross-check metrics in a paper bundle.
+
+    Verifies that metrics_master.json values are consistent with the source
+    per_query.csv data using the canonical compute_metrics module.
+
+    Args:
+        bundle_dir: Path to paper bundle directory
+        output_file: Optional path to save cross-check results
+
+    Returns:
+        0 if all checks pass, 1 otherwise
+    """
+    print(f"{'='*80}")
+    print("PAPER BUNDLE METRIC CROSS-CHECK")
+    print(f"{'='*80}\n")
+
+    # Load metrics_master.json
+    metrics_master_path = bundle_dir / "metrics_master.json"
+    if not metrics_master_path.exists():
+        print(f"ERROR: metrics_master.json not found in {bundle_dir}")
+        return 1
+
+    with open(metrics_master_path) as f:
+        metrics_master = json.load(f)
+
+    print(f"Loaded metrics_master.json from: {metrics_master_path}")
+
+    # Get source per_query.csv path
+    source_csv = metrics_master.get("metadata", {}).get("source_per_query_csv")
+    if not source_csv:
+        print("WARNING: source_per_query_csv not in metadata, trying default location")
+        source_csv = "outputs/final_research_eval/20260118_031312_complete/per_query.csv"
+
+    source_csv_path = Path(source_csv)
+    if not source_csv_path.is_absolute():
+        # Try relative to current dir
+        if not source_csv_path.exists():
+            source_csv_path = bundle_dir.parent.parent.parent / source_csv
+
+    if not source_csv_path.exists():
+        print(f"ERROR: Source per_query.csv not found: {source_csv_path}")
+        print("Cannot verify metrics without source data.")
+        return 1
+
+    print(f"Loading source data from: {source_csv_path}")
+    df = pd.read_csv(source_csv_path)
+    print(f"Loaded {len(df)} queries\n")
+
+    # Verify key metrics
+    checks = []
+    tolerance = 0.0001
+
+    # Classification metrics (all_queries protocol)
+    if "has_evidence_gold" in df.columns:
+        labels = df["has_evidence_gold"].values
+
+        # Try to find probability column
+        prob_col = None
+        for col in ["p4_prob_calibrated", "p4_prob", "prob", "score"]:
+            if col in df.columns:
+                prob_col = col
+                break
+
+        if prob_col:
+            probs = df[prob_col].values
+            valid_mask = ~np.isnan(probs)
+
+            # AUROC
+            if valid_mask.sum() > 0:
+                auroc_computed = roc_auc_score(labels[valid_mask], probs[valid_mask])
+                # Support both naming conventions
+                class_metrics = metrics_master.get("classification_metrics", metrics_master.get("classification", {}))
+                class_metrics = class_metrics.get("metrics", class_metrics)  # Handle nested structure
+                auroc_reported = class_metrics.get("auroc", {}).get("value")
+
+                if auroc_reported is not None:
+                    diff = abs(auroc_computed - auroc_reported)
+                    match = diff <= tolerance
+                    checks.append({
+                        "metric": "AUROC",
+                        "computed": auroc_computed,
+                        "reported": auroc_reported,
+                        "diff": diff,
+                        "match": match,
+                    })
+                    print(f"AUROC: {auroc_computed:.4f} (computed) vs {auroc_reported:.4f} (reported) "
+                          f"{'✅' if match else '❌'}")
+
+                # AUPRC - CRITICAL: verify it's NOT confused with Recall@K
+                auprc_computed = average_precision_score(labels[valid_mask], probs[valid_mask])
+                auprc_reported = class_metrics.get("auprc", {}).get("value")
+
+                if auprc_reported is not None:
+                    diff = abs(auprc_computed - auprc_reported)
+                    match = diff <= tolerance
+                    checks.append({
+                        "metric": "AUPRC",
+                        "computed": auprc_computed,
+                        "reported": auprc_reported,
+                        "diff": diff,
+                        "match": match,
+                    })
+                    print(f"AUPRC: {auprc_computed:.4f} (computed) vs {auprc_reported:.4f} (reported) "
+                          f"{'✅' if match else '❌'}")
+
+                    # Safety check: AUPRC should NOT equal any Recall@K value
+                    ranking_section = metrics_master.get("ranking_metrics", metrics_master.get("ranking", {}))
+                    ranking_metrics = ranking_section.get("metrics", ranking_section)
+                    for metric_name, metric_data in ranking_metrics.items():
+                        if "recall" in metric_name.lower():
+                            recall_val = metric_data.get("value", 0)
+                            if abs(auprc_computed - recall_val) < 0.0001:
+                                print(f"⚠️  WARNING: AUPRC ({auprc_computed:.4f}) equals {metric_name} ({recall_val:.4f})!")
+                                print("    This may indicate metric confusion. AUPRC and Recall@K are different metrics.")
+
+    # Ranking metrics (positives_only protocol)
+    pos_mask = df["has_evidence_gold"] == 1 if "has_evidence_gold" in df.columns else df.index
+    df_pos = df[pos_mask]
+
+    # Support both naming conventions
+    ranking_section = metrics_master.get("ranking_metrics", metrics_master.get("ranking", {}))
+    ranking_metrics_dict = ranking_section.get("metrics", ranking_section)
+
+    for metric_name in ["evidence_recall_at_k", "mrr", "ndcg_at_k"]:
+        if metric_name in df_pos.columns:
+            computed = df_pos[metric_name].dropna().mean()
+            reported = ranking_metrics_dict.get(metric_name, {}).get("value")
+
+            if reported is not None:
+                diff = abs(computed - reported)
+                match = diff <= tolerance
+                checks.append({
+                    "metric": metric_name,
+                    "computed": computed,
+                    "reported": reported,
+                    "diff": diff,
+                    "match": match,
+                })
+                print(f"{metric_name}: {computed:.4f} (computed) vs {reported:.4f} (reported) "
+                      f"{'✅' if match else '❌'}")
+
+    # Summary
+    print(f"\n{'='*80}")
+    print("CROSS-CHECK SUMMARY")
+    print(f"{'='*80}\n")
+
+    all_passed = all(c["match"] for c in checks) if checks else False
+    n_passed = sum(1 for c in checks if c["match"])
+    n_total = len(checks)
+
+    if all_passed:
+        print(f"✅ ALL {n_total} METRIC CHECKS PASSED")
+        status = "PASS"
+    else:
+        print(f"❌ {n_total - n_passed}/{n_total} METRIC CHECKS FAILED")
+        status = "FAIL"
+
+    # Save results if output specified
+    if output_file:
+        results = {
+            "status": status,
+            "bundle_dir": str(bundle_dir),
+            "source_csv": str(source_csv_path),
+            "n_queries": len(df),
+            "checks": checks,
+        }
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_file, "w") as f:
+            json.dump(results, f, indent=2)
+        print(f"\nResults saved to: {output_file}")
+
+    return 0 if all_passed else 1
+
+
 def main():
     parser = argparse.ArgumentParser(description="Cross-check metrics")
-    parser.add_argument(
+    subparsers = parser.add_subparsers(dest="mode", help="Operation mode")
+
+    # Legacy mode (fold-based)
+    fold_parser = subparsers.add_parser("folds", help="Cross-check fold-based results")
+    fold_parser.add_argument(
         "--fold_results_dir",
         type=Path,
         required=True,
         help="Directory containing fold_*_predictions.csv files"
     )
-    parser.add_argument(
+    fold_parser.add_argument(
         "--pipeline_summary",
         type=Path,
         required=True,
         help="Path to pipeline summary.json"
     )
-    parser.add_argument(
+    fold_parser.add_argument(
         "--output",
         type=Path,
         required=True,
         help="Output JSON file for cross-check results"
     )
 
-    args = parser.parse_args()
-
-    # Find all fold CSV files
-    per_query_csvs = sorted(args.fold_results_dir.glob("fold_*_predictions.csv"))
-
-    if not per_query_csvs:
-        print(f"ERROR: No fold_*_predictions.csv files found in {args.fold_results_dir}")
-        sys.exit(1)
-
-    exit_code = cross_check_metrics(
-        per_query_csvs,
-        args.pipeline_summary,
-        args.output
+    # Bundle mode (v3.0+)
+    bundle_parser = subparsers.add_parser("bundle", help="Cross-check paper bundle")
+    bundle_parser.add_argument(
+        "--bundle",
+        type=Path,
+        required=True,
+        help="Path to paper bundle directory"
+    )
+    bundle_parser.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help="Optional output JSON file for cross-check results"
     )
 
-    sys.exit(exit_code)
+    # Direct bundle argument for backward compatibility
+    parser.add_argument(
+        "--bundle",
+        type=Path,
+        default=None,
+        help="Path to paper bundle directory (shortcut for 'bundle' mode)"
+    )
+
+    args = parser.parse_args()
+
+    # Handle direct --bundle argument
+    if args.bundle and not args.mode:
+        return cross_check_bundle(args.bundle)
+
+    if args.mode == "bundle":
+        return cross_check_bundle(args.bundle, args.output)
+
+    elif args.mode == "folds":
+        # Find all fold CSV files
+        per_query_csvs = sorted(args.fold_results_dir.glob("fold_*_predictions.csv"))
+
+        if not per_query_csvs:
+            print(f"ERROR: No fold_*_predictions.csv files found in {args.fold_results_dir}")
+            return 1
+
+        return cross_check_metrics(
+            per_query_csvs,
+            args.pipeline_summary,
+            args.output
+        )
+
+    else:
+        parser.print_help()
+        return 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -80,8 +80,14 @@ def main():
     parser.add_argument(
         "--checksums",
         type=Path,
-        default=Path("results/paper_bundle/v1.0/checksums.txt"),
+        default=None,
         help="Path to checksums.txt file"
+    )
+    parser.add_argument(
+        "--bundle",
+        type=Path,
+        default=None,
+        help="Path to paper bundle directory (will look for checksums.txt inside)"
     )
     parser.add_argument(
         "--verbose", "-v",
@@ -91,14 +97,23 @@ def main():
 
     args = parser.parse_args()
 
-    if not args.checksums.exists():
-        print(f"ERROR: Checksums file not found: {args.checksums}")
+    # Determine checksums path
+    if args.bundle:
+        checksums_path = args.bundle / "checksums.txt"
+    elif args.checksums:
+        checksums_path = args.checksums
+    else:
+        # Default
+        checksums_path = Path("results/paper_bundle/v3.0/checksums.txt")
+
+    if not checksums_path.exists():
+        print(f"ERROR: Checksums file not found: {checksums_path}")
         return 1
 
-    print(f"Verifying checksums from: {args.checksums}")
+    print(f"Verifying checksums from: {checksums_path}")
     print("-" * 60)
 
-    passed, failed, missing = verify_checksums(args.checksums)
+    passed, failed, missing = verify_checksums(checksums_path)
 
     # Print results
     if args.verbose:

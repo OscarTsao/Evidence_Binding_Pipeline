@@ -1,0 +1,179 @@
+{
+  "_meta": {
+    "description": "Single source of truth for all metrics reported in the paper",
+    "version": "v3.0",
+    "last_updated": "2026-01-20",
+    "generated_from": "outputs/final_research_eval/20260118_031312_complete",
+    "generator_script": "scripts/reporting/build_paper_bundle.py",
+    "dataset": "RedSM5",
+    "n_queries": 14770,
+    "n_queries_with_evidence": 1379
+  },
+  "ranking_metrics": {
+    "protocol": "positives_only",
+    "protocol_description": "Computed only on queries where has_evidence=1",
+    "split": "TEST",
+    "seed": 42,
+    "metrics": {
+      "ndcg_at_10": {
+        "value": null,
+        "note": "HPO-optimized on DEV split"
+      },
+      "evidence_recall_at_k": {
+        "value": 0.7042905488595139,
+        "ci_95_lower": 0.681265711999938,
+        "ci_95_upper": 0.7267373701556166,
+        "note": "Fraction of gold sentences in top-K"
+      },
+      "mrr": {
+        "value": 0.3801135984766998,
+        "note": "Mean Reciprocal Rank"
+      }
+    }
+  },
+  "classification_metrics": {
+    "protocol": "all_queries",
+    "protocol_description": "Computed on all queries (binary classification)",
+    "split": "TEST",
+    "seed": 42,
+    "model": "P4 Criterion-Aware GNN",
+    "metrics": {
+      "auroc": {
+        "value": 0.8971664916892165,
+        "ci_95_lower": 0.8883114223282629,
+        "ci_95_upper": 0.9055821615800622,
+        "note": "Evidence detection AUROC"
+      },
+      "auprc": {
+        "value": 0.5708890931511371,
+        "ci_95_lower": 0.5433439414224643,
+        "ci_95_upper": 0.5995963145740124,
+        "note": "Area under precision-recall curve (NOT Recall@K)"
+      }
+    }
+  },
+  "calibration_metrics": {
+    "protocol": "all_queries",
+    "metrics": {
+      "ece": {
+        "value": 0.008552057825604385,
+        "note": "Expected Calibration Error"
+      },
+      "brier_score": {
+        "value": 0.05541410011375871,
+        "note": "Brier score (lower is better)"
+      }
+    }
+  },
+  "per_criterion_performance": {
+    "protocol": "all_queries",
+    "split": "TEST",
+    "criteria": {
+      "A.1": {
+        "description": "Depressed Mood",
+        "n_queries": 1477,
+        "n_positive": 328,
+        "positive_rate": 0.22207176709546378,
+        "auroc": 0.8274493727313252,
+        "auprc": 0.5760907312751609,
+        "evidence_recall_at_k": 0.7096036587183069,
+        "mrr": 0.3940449933455672
+      },
+      "A.10": {
+        "description": "Duration (2+ weeks)",
+        "n_queries": 1477,
+        "n_positive": 86,
+        "positive_rate": 0.05822613405551794,
+        "auroc": 0.6647718723354455,
+        "auprc": 0.08559712931526856,
+        "evidence_recall_at_k": 0.5813953488372093,
+        "mrr": 0.28213954972675903
+      },
+      "A.2": {
+        "description": "Anhedonia",
+        "n_queries": 1477,
+        "n_positive": 124,
+        "positive_rate": 0.08395396073121192,
+        "auroc": 0.8761384498009204,
+        "auprc": 0.4641582931604473,
+        "evidence_recall_at_k": 0.8380376345688297,
+        "mrr": 0.4264712653575882
+      },
+      "A.3": {
+        "description": "Weight/Appetite Change",
+        "n_queries": 1477,
+        "n_positive": 44,
+        "positive_rate": 0.02979011509817197,
+        "auroc": 0.9079252045930343,
+        "auprc": 0.2504323222991304,
+        "evidence_recall_at_k": 0.6590909090909091,
+        "mrr": 0.4011907446698468
+      },
+      "A.4": {
+        "description": "Sleep Disturbance",
+        "n_queries": 1477,
+        "n_positive": 102,
+        "positive_rate": 0.06905890318212593,
+        "auroc": 0.885910873440285,
+        "auprc": 0.3784437711831799,
+        "evidence_recall_at_k": 0.6928104577111263,
+        "mrr": 0.43324512217245775
+      },
+      "A.5": {
+        "description": "Psychomotor Changes",
+        "n_queries": 1477,
+        "n_positive": 35,
+        "positive_rate": 0.023696682464454975,
+        "auroc": 0.8006340400237766,
+        "auprc": 0.10989424233429806,
+        "evidence_recall_at_k": 0.6285714285714286,
+        "mrr": 0.3078904428904428
+      },
+      "A.6": {
+        "description": "Fatigue/Loss of Energy",
+        "n_queries": 1477,
+        "n_positive": 124,
+        "positive_rate": 0.08395396073121192,
+        "auroc": 0.9264328970269176,
+        "auprc": 0.6032523035265202,
+        "evidence_recall_at_k": 0.7143817207505626,
+        "mrr": 0.29662657669654824
+      },
+      "A.7": {
+        "description": "Worthlessness/Guilt",
+        "n_queries": 1477,
+        "n_positive": 311,
+        "positive_rate": 0.2105619498984428,
+        "auroc": 0.9183235620170643,
+        "auprc": 0.7735198285862738,
+        "evidence_recall_at_k": 0.7169346196091827,
+        "mrr": 0.40610323956254396
+      },
+      "A.8": {
+        "description": "Concentration Difficulty",
+        "n_queries": 1477,
+        "n_positive": 59,
+        "positive_rate": 0.03994583615436696,
+        "auroc": 0.7984568860414526,
+        "auprc": 0.11507730802814514,
+        "evidence_recall_at_k": 0.6610169491525424,
+        "mrr": 0.3402349447063988
+      },
+      "A.9": {
+        "description": "Suicidal Ideation",
+        "n_queries": 1477,
+        "n_positive": 166,
+        "positive_rate": 0.11238997968855789,
+        "auroc": 0.9466010495069522,
+        "auprc": 0.7444263118594194,
+        "evidence_recall_at_k": 0.676706827548613,
+        "mrr": 0.37355560735512433
+      }
+    }
+  },
+  "provenance": {
+    "source_file": "outputs/final_research_eval/20260118_031312_complete",
+    "generation_timestamp": "2026-01-20T21:58:46.611609",
+    "metric_contract": "docs/METRIC_CONTRACT.md"
+  }
+}

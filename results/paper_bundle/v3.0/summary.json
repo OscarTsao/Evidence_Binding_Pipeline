@@ -1,0 +1,13 @@
+{
+  "version": "v3.0",
+  "generated": "2026-01-20T21:58:46.611858",
+  "source_run": "outputs/final_research_eval/20260118_031312_complete",
+  "primary_metrics": {
+    "auroc": 0.8971664916892165,
+    "auprc": 0.5708890931511371,
+    "evidence_recall_at_k": 0.7042905488595139,
+    "mrr": 0.3801135984766998
+  },
+  "n_queries": 14770,
+  "n_positive": 1379
+}
