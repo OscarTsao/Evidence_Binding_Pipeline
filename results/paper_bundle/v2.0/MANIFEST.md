@@ -27,6 +27,12 @@ This bundle contains all artifacts required to verify the research results.
 | `tables/per_criterion.csv` | Per-criterion AUROC breakdown |
 | `tables/ablation.csv` | Top-10 model combinations |
 
+### LLM Experiments
+
+| File | Description |
+|------|-------------|
+| `llm_experiment_results.json` | Full LLM experiment results and analysis |
+
 ## Verification
 
 ```bash
@@ -46,6 +52,16 @@ python scripts/verification/verify_checksums.py
 | Evidence Recall@K | 0.7043 | positives_only |
 | MRR | 0.3801 | positives_only |
 | nDCG@10 | 0.8658 | positives_only |
+
+## LLM Experiment Summary (2026-01-20)
+
+Model: Qwen/Qwen2.5-7B-Instruct (4-bit quantization)
+
+| Component | Metric | Value | Notes |
+|-----------|--------|-------|-------|
+| LLM Verifier | AUROC | 0.8931 | Near-baseline, 87% accuracy |
+| A.10 Classifier | AUROC | 0.5603 | Below baseline (0.66) |
+| LLM Reranker | Position Bias | 0.507 | Needs mitigation |
 
 ## Provenance
 

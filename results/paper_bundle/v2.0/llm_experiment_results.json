@@ -1,0 +1,66 @@
+{
+  "experiment_date": "2026-01-20",
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "quantization": "4-bit",
+  "experiments": {
+    "verifier": {
+      "description": "LLM verification of evidence presence for uncertain cases",
+      "samples": 246,
+      "metrics": {
+        "auroc": 0.8931,
+        "accuracy": 0.8740,
+        "precision": 0.75,
+        "recall": 0.62,
+        "f1": 0.68
+      },
+      "per_state_accuracy": {
+        "NEG": 0.99,
+        "UNCERTAIN": 0.88,
+        "POS": 0.61
+      },
+      "conclusion": "LLM Verifier achieves AUROC close to baseline (0.8931 vs 0.8972), excellent at ruling out negative cases (99% accuracy on NEG)"
+    },
+    "a10_classifier": {
+      "description": "LLM classification of A.10 (suicidal ideation) criterion",
+      "samples": 186,
+      "positive_samples": 86,
+      "metrics": {
+        "auroc": 0.5603,
+        "accuracy": 0.4946,
+        "precision": 0.45,
+        "recall": 0.47,
+        "f1": 0.46
+      },
+      "baseline_auroc": 0.66,
+      "severity_distribution": {
+        "none": 98,
+        "passive": 33,
+        "active": 45,
+        "plan": 10
+      },
+      "conclusion": "LLM-only A.10 classification UNDERPERFORMS baseline (0.56 vs 0.66). Without retrieval context, the model struggles with nuanced suicidal ideation detection."
+    },
+    "reranker": {
+      "description": "LLM listwise reranking of evidence sentences",
+      "samples": 48,
+      "metrics": {
+        "avg_position_bias": 0.507,
+        "low_bias_rate": 0.098
+      },
+      "conclusion": "LLM Reranker shows significant position bias (0.507). Only 9.8% of samples have low bias, suggesting the model is susceptible to ordering effects."
+    }
+  },
+  "summary": {
+    "best_use_case": "LLM Verifier for uncertain case verification",
+    "limitations": [
+      "A.10 classifier needs retrieval context to match baseline",
+      "Reranker has significant position bias",
+      "Self-consistency adds 3x inference cost"
+    ],
+    "recommendations": [
+      "Use LLM Verifier as a second-stage filter for UNCERTAIN predictions",
+      "Integrate A.10 classifier with retrieval pipeline rather than standalone",
+      "Apply position bias mitigation (e.g., shuffle+aggregate) for reranking"
+    ]
+  }
+}

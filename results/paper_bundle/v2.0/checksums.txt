@@ -3,9 +3,12 @@
 # Verify: sha256sum -c checksums.txt
 
 # Core files
-071d9c6b364e3241c1431ff58e1e8c02d402f4f9e11745f4d675132c5d3a130f  metrics_master.json
+440227e8d7d12fc0e1eb37ad152e4aab104914e6106aef0e7c5f633e0201aa74  metrics_master.json
 1339d602003ec91df431ae84903f8e449af98b9018c519de9bff387a39a4f3fc  summary.json
-9795884640b5d1c03a2da088b2df8e0c902cecb29ab166c1242e125d2a290683  MANIFEST.md
+4a08c9823207587ea8d1b9d35050406aa37c43263c4fc7a4d3f633dcc833d93c  MANIFEST.md
+
+# LLM Experiments
+b85e9a86b5d67a0cfa65ac81e316994e6f7e980009164a6e29995f1ac7f4d7dd  llm_experiment_results.json
 
 # Tables
 8e8f1246cde492ceb5b2daecc48f1af12f6ef48f84c6e9980fed6563d152c8c9  tables/main_results.csv
