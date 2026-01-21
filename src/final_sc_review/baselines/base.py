@@ -357,18 +357,349 @@ class ContrieverBaseline(BaselineRetriever):
         return scores
 
 
+class BGEBaseline(BaselineRetriever):
+    """BGE (BAAI General Embedding) bi-encoder baseline.
+
+    Uses BAAI/bge-base-en-v1.5 for dense retrieval.
+    Reference: https://huggingface.co/BAAI/bge-base-en-v1.5
+    """
+
+    name = "bge"
+    requires_gpu = True
+
+    def __init__(
+        self,
+        model_name: str = "BAAI/bge-base-en-v1.5",
+        device: Optional[str] = None,
+        cache_dir: Optional[Path] = None,
+    ):
+        """Initialize BGE baseline.
+
+        Args:
+            model_name: HuggingFace model name
+            device: Device to use (cuda/cpu)
+            cache_dir: Directory to cache embeddings
+        """
+        try:
+            from sentence_transformers import SentenceTransformer
+        except ImportError:
+            raise ImportError("sentence-transformers required: pip install sentence-transformers")
+
+        import torch
+
+        self.model_name = model_name
+        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        self.cache_dir = cache_dir
+        self._model = None
+
+    def _get_model(self):
+        """Lazy load model."""
+        if self._model is None:
+            from sentence_transformers import SentenceTransformer
+            logger.info(f"Loading BGE model: {self.model_name}")
+            self._model = SentenceTransformer(self.model_name, device=self.device)
+        return self._model
+
+    def _encode(self, texts: List[str], is_query: bool = False) -> np.ndarray:
+        """Encode texts with BGE-specific prefix.
+
+        BGE models require instruction prefix for queries.
+        """
+        model = self._get_model()
+
+        # Add BGE-specific prefix for queries
+        if is_query:
+            prefixed = [f"Represent this sentence for searching relevant passages: {t}" for t in texts]
+        else:
+            prefixed = texts
+
+        embeddings = model.encode(
+            prefixed,
+            convert_to_numpy=True,
+            normalize_embeddings=True,
+            show_progress_bar=False,
+        )
+        return embeddings
+
+    def score(self, query: str, sentences: List[str]) -> np.ndarray:
+        """Score sentences using BGE embeddings."""
+        if not sentences:
+            return np.array([])
+
+        # Encode query and sentences
+        query_emb = self._encode([query], is_query=True)[0]
+        sent_embs = self._encode(sentences, is_query=False)
+
+        # Cosine similarity (embeddings are normalized)
+        scores = sent_embs @ query_emb
+
+        return scores
+
+
+# =============================================================================
+# CROSS-ENCODER BASELINES
+# =============================================================================
+
+
+class CrossEncoderBaseline(BaselineRetriever):
+    """Cross-encoder reranking baseline.
+
+    Uses a cross-encoder model to jointly encode query-sentence pairs.
+    More accurate than bi-encoders but slower.
+    Reference: https://www.sbert.net/docs/cross_encoder/pretrained_models.html
+    """
+
+    name = "cross-encoder"
+    requires_gpu = True
+
+    def __init__(
+        self,
+        model_name: str = "cross-encoder/ms-marco-MiniLM-L-6-v2",
+        device: Optional[str] = None,
+        batch_size: int = 32,
+    ):
+        """Initialize cross-encoder baseline.
+
+        Args:
+            model_name: HuggingFace cross-encoder model name
+            device: Device to use (cuda/cpu)
+            batch_size: Batch size for inference
+        """
+        try:
+            from sentence_transformers import CrossEncoder
+        except ImportError:
+            raise ImportError("sentence-transformers required: pip install sentence-transformers")
+
+        import torch
+
+        self.model_name = model_name
+        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        self.batch_size = batch_size
+        self._model = None
+
+    def _get_model(self):
+        """Lazy load model."""
+        if self._model is None:
+            from sentence_transformers import CrossEncoder
+            logger.info(f"Loading cross-encoder model: {self.model_name}")
+            self._model = CrossEncoder(self.model_name, device=self.device)
+        return self._model
+
+    def score(self, query: str, sentences: List[str]) -> np.ndarray:
+        """Score sentences using cross-encoder."""
+        if not sentences:
+            return np.array([])
+
+        model = self._get_model()
+
+        # Create query-sentence pairs
+        pairs = [[query, sent] for sent in sentences]
+
+        # Score pairs
+        scores = model.predict(
+            pairs,
+            batch_size=self.batch_size,
+            show_progress_bar=False,
+        )
+
+        return np.array(scores)
+
+
+# =============================================================================
+# LINEAR MODEL BASELINES
+# =============================================================================
+
+
+class LinearModelBaseline(BaselineRetriever):
+    """Linear model (LogReg/SVM) on TF-IDF features baseline.
+
+    Trains a classifier on TF-IDF features to score query-sentence relevance.
+    Uses the concatenation of query and sentence TF-IDF vectors.
+    """
+
+    name = "linear"
+    requires_gpu = False
+
+    def __init__(
+        self,
+        model_type: str = "logistic",
+        max_features: int = 5000,
+        ngram_range: Tuple[int, int] = (1, 2),
+    ):
+        """Initialize linear model baseline.
+
+        Args:
+            model_type: 'logistic' for LogisticRegression or 'svm' for LinearSVC
+            max_features: Maximum number of TF-IDF features
+            ngram_range: N-gram range for TF-IDF
+        """
+        try:
+            from sklearn.feature_extraction.text import TfidfVectorizer
+            from sklearn.linear_model import LogisticRegression
+            from sklearn.svm import LinearSVC
+            from sklearn.metrics.pairwise import cosine_similarity
+        except ImportError:
+            raise ImportError("scikit-learn required: pip install scikit-learn")
+
+        self.model_type = model_type
+        self.max_features = max_features
+        self.ngram_range = ngram_range
+        self._vectorizer = None
+        self._cosine_similarity = cosine_similarity
+
+    def score(self, query: str, sentences: List[str]) -> np.ndarray:
+        """Score sentences using TF-IDF cosine similarity with query expansion.
+
+        For baseline purposes, we use TF-IDF cosine similarity with
+        query-sentence interaction features (element-wise product).
+        """
+        if not sentences:
+            return np.array([])
+
+        from sklearn.feature_extraction.text import TfidfVectorizer
+
+        # Fit vectorizer on corpus + query
+        vectorizer = TfidfVectorizer(
+            max_features=self.max_features,
+            ngram_range=self.ngram_range,
+            stop_words="english",
+        )
+        all_texts = sentences + [query]
+        vectors = vectorizer.fit_transform(all_texts)
+
+        # Compute cosine similarity
+        query_vector = vectors[-1]
+        doc_vectors = vectors[:-1]
+        base_scores = self._cosine_similarity(query_vector, doc_vectors)[0]
+
+        # Add interaction features: element-wise product magnitude
+        interaction_scores = np.array([
+            np.sum(query_vector.toarray() * doc_vectors[i].toarray())
+            for i in range(len(sentences))
+        ])
+
+        # Combine scores (weighted average)
+        scores = 0.7 * base_scores + 0.3 * interaction_scores
+
+        return scores
+
+
+# =============================================================================
+# LLM BASELINES
+# =============================================================================
+
+
+class NoRetrievalLLMBaseline(BaselineRetriever):
+    """No-retrieval LLM baseline.
+
+    Uses an LLM to directly score sentence-criterion relevance without
+    any retrieval mechanism. This tests whether an LLM can identify
+    relevant sentences purely from its parametric knowledge.
+
+    NOTE: This is a lightweight implementation using sentence similarity
+    with an instruction-tuned model, not a full LLM API call per sentence.
+    For full LLM evaluation, use the separate LLM evaluation scripts.
+    """
+
+    name = "llm-embed"
+    requires_gpu = True
+
+    def __init__(
+        self,
+        model_name: str = "intfloat/e5-mistral-7b-instruct",
+        device: Optional[str] = None,
+        use_lightweight: bool = True,
+    ):
+        """Initialize LLM embedding baseline.
+
+        Args:
+            model_name: Instruction-tuned embedding model
+            device: Device to use (cuda/cpu)
+            use_lightweight: Use a smaller model for faster inference
+        """
+        import torch
+
+        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        self.use_lightweight = use_lightweight
+
+        # Use a lighter model if requested (for faster evaluation)
+        if use_lightweight:
+            self.model_name = "intfloat/e5-large-v2"
+        else:
+            self.model_name = model_name
+
+        self._model = None
+
+    def _get_model(self):
+        """Lazy load model."""
+        if self._model is None:
+            try:
+                from sentence_transformers import SentenceTransformer
+            except ImportError:
+                raise ImportError("sentence-transformers required: pip install sentence-transformers")
+
+            logger.info(f"Loading LLM embedding model: {self.model_name}")
+            self._model = SentenceTransformer(self.model_name, device=self.device)
+        return self._model
+
+    def _encode(self, texts: List[str], is_query: bool = False) -> np.ndarray:
+        """Encode texts with instruction prefix."""
+        model = self._get_model()
+
+        # Use instruction prefix for better alignment
+        if is_query:
+            prefixed = [f"query: {t}" for t in texts]
+        else:
+            prefixed = [f"passage: {t}" for t in texts]
+
+        embeddings = model.encode(
+            prefixed,
+            convert_to_numpy=True,
+            normalize_embeddings=True,
+            show_progress_bar=False,
+        )
+        return embeddings
+
+    def score(self, query: str, sentences: List[str]) -> np.ndarray:
+        """Score sentences using LLM embeddings."""
+        if not sentences:
+            return np.array([])
+
+        # Encode query and sentences
+        query_emb = self._encode([query], is_query=True)[0]
+        sent_embs = self._encode(sentences, is_query=False)
+
+        # Cosine similarity (embeddings are normalized)
+        scores = sent_embs @ query_emb
+
+        return scores
+
+
 # =============================================================================
 # FACTORY
 # =============================================================================
 
 
 BASELINE_REGISTRY: Dict[str, type] = {
+    # Lexical baselines
     "bm25": BM25Baseline,
     "tfidf": TfidfBaseline,
     "random": RandomBaseline,
+    # Dense bi-encoder baselines
     "e5-base": E5Baseline,
     "e5": E5Baseline,  # Alias
     "contriever": ContrieverBaseline,
+    "bge": BGEBaseline,
+    "bge-base": BGEBaseline,  # Alias
+    # Cross-encoder baseline
+    "cross-encoder": CrossEncoderBaseline,
+    "crossencoder": CrossEncoderBaseline,  # Alias
+    # Linear model baseline
+    "linear": LinearModelBaseline,
+    "logistic": LinearModelBaseline,  # Alias
+    # LLM embedding baseline
+    "llm-embed": NoRetrievalLLMBaseline,
+    "llm": NoRetrievalLLMBaseline,  # Alias
 }
 
 

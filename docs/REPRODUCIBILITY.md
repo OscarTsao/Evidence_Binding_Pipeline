@@ -4,12 +4,15 @@
 
 This document provides complete instructions for reproducing all results in the paper.
 
+**Paper Bundle Version:** v3.0
+**Last Updated:** 2026-01-21
+
 ## Quick Verification (No Data Required)
 
 ```bash
 # 1. Run all tests
 pytest -q
-# Expected: 197+ tests pass
+# Expected: 232+ tests pass
 
 # 2. Verify paper bundle integrity
 python scripts/verification/verify_checksums.py
@@ -88,7 +91,7 @@ python scripts/eval_zoo_pipeline.py \
 # Compare with expected metrics
 python scripts/verification/metric_crosscheck.py \
     --computed outputs/reproduction/eval_results.json \
-    --expected results/paper_bundle/v2.0/metrics_master.json
+    --expected results/paper_bundle/v3.0/metrics_master.json
 ```
 
 ## Expected Results
@@ -137,7 +140,7 @@ python scripts/robustness/run_multi_seed_eval.py \
 All paper bundle files have SHA256 checksums:
 
 ```bash
-cd results/paper_bundle/v2.0
+cd results/paper_bundle/v3.0
 sha256sum -c checksums.txt
 ```
 
@@ -159,7 +162,37 @@ sha256sum -c checksums.txt
 
 The single source of truth for all metrics is:
 ```
-results/paper_bundle/v2.0/metrics_master.json
+results/paper_bundle/v3.0/metrics_master.json
 ```
 
 All other metric reports should match this file.
+
+## Available Baselines
+
+The following baseline retrievers are available for comparison:
+
+| Baseline | Type | Command |
+|----------|------|---------|
+| BM25 | Lexical | `get_baseline("bm25")` |
+| TF-IDF | Lexical | `get_baseline("tfidf")` |
+| E5-base | Dense | `get_baseline("e5-base")` |
+| BGE | Dense | `get_baseline("bge")` |
+| Contriever | Dense | `get_baseline("contriever")` |
+| Cross-encoder | Reranker | `get_baseline("cross-encoder")` |
+| Linear | TF-IDF features | `get_baseline("linear")` |
+| LLM-embed | LLM embeddings | `get_baseline("llm-embed")` |
+
+```bash
+python scripts/baselines/run_baseline_comparison.py \
+    --output outputs/baselines/ \
+    --baselines bm25 tfidf e5-base bge contriever
+```
+
+## CITATION.cff
+
+This repository includes a CITATION.cff file for proper academic citation.
+To verify it's valid:
+
+```bash
+pytest tests/test_citation_cff.py -v
+```

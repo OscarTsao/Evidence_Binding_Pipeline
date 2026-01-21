@@ -33,9 +33,12 @@ from sklearn.metrics import (
 )
 
 from final_sc_review.metrics.ranking import (
+    evidence_coverage,
+    f1_at_k,
     map_at_k,
     mrr_at_k,
     ndcg_at_k,
+    precision_at_k,
     recall_at_k,
 )
 
@@ -400,6 +403,172 @@ def compute_calibration_metrics(
     }
 
     return metrics
+
+
+# =============================================================================
+# MULTI-LABEL F1 METRICS
+# =============================================================================
+
+
+def compute_multilabel_f1(
+    per_query_df: pd.DataFrame,
+    prob_col: str = "p4_prob_calibrated",
+    gold_col: str = "has_evidence_gold",
+    criterion_col: str = "criterion_id",
+    post_col: str = "post_id",
+    threshold: float = 0.5,
+) -> Dict[str, float]:
+    """Compute Micro and Macro F1 for multi-label criterion classification.
+
+    In the multi-label setting, each post can have multiple criteria with evidence.
+    This function computes:
+    - Micro F1: Global TP/FP/FN across all post-criterion pairs
+    - Macro F1: Average F1 per criterion
+
+    Args:
+        per_query_df: DataFrame with per-query (post x criterion) results
+        prob_col: Column with predicted probability
+        gold_col: Column with gold label (0/1)
+        criterion_col: Column with criterion ID
+        post_col: Column with post ID
+        threshold: Decision threshold for classification
+
+    Returns:
+        Dictionary with micro_f1, macro_f1, and per-criterion F1
+    """
+    y_true = per_query_df[gold_col].values
+    y_score = per_query_df[prob_col].values
+    y_pred = (y_score >= threshold).astype(int)
+
+    # Remove NaN
+    valid_mask = ~(np.isnan(y_true) | np.isnan(y_score))
+    y_true = y_true[valid_mask]
+    y_pred = y_pred[valid_mask]
+    df_valid = per_query_df[valid_mask].copy()
+
+    # Micro F1: global counts
+    tp = ((y_true == 1) & (y_pred == 1)).sum()
+    fp = ((y_true == 0) & (y_pred == 1)).sum()
+    fn = ((y_true == 1) & (y_pred == 0)).sum()
+
+    micro_precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+    micro_recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+    micro_f1 = (
+        2 * micro_precision * micro_recall / (micro_precision + micro_recall)
+        if (micro_precision + micro_recall) > 0
+        else 0.0
+    )
+
+    # Macro F1: average F1 per criterion
+    criterion_f1s = []
+    per_criterion_f1 = {}
+
+    for criterion_id in df_valid[criterion_col].unique():
+        crit_mask = df_valid[criterion_col] == criterion_id
+        crit_true = y_true[crit_mask]
+        crit_pred = y_pred[crit_mask]
+
+        crit_tp = ((crit_true == 1) & (crit_pred == 1)).sum()
+        crit_fp = ((crit_true == 0) & (crit_pred == 1)).sum()
+        crit_fn = ((crit_true == 1) & (crit_pred == 0)).sum()
+
+        crit_prec = crit_tp / (crit_tp + crit_fp) if (crit_tp + crit_fp) > 0 else 0.0
+        crit_rec = crit_tp / (crit_tp + crit_fn) if (crit_tp + crit_fn) > 0 else 0.0
+        crit_f1 = (
+            2 * crit_prec * crit_rec / (crit_prec + crit_rec)
+            if (crit_prec + crit_rec) > 0
+            else 0.0
+        )
+
+        criterion_f1s.append(crit_f1)
+        per_criterion_f1[criterion_id] = crit_f1
+
+    macro_f1 = float(np.mean(criterion_f1s)) if criterion_f1s else 0.0
+
+    return {
+        "micro_f1": float(micro_f1),
+        "macro_f1": float(macro_f1),
+        "micro_precision": float(micro_precision),
+        "micro_recall": float(micro_recall),
+        "threshold": threshold,
+        "n_criteria": len(criterion_f1s),
+        "per_criterion_f1": per_criterion_f1,
+    }
+
+
+# =============================================================================
+# RELIABILITY DIAGRAM GENERATION
+# =============================================================================
+
+
+def plot_reliability_diagram(
+    per_query_df: pd.DataFrame,
+    prob_col: str = "p4_prob_calibrated",
+    gold_col: str = "has_evidence_gold",
+    n_bins: int = 10,
+    output_path: Optional[str] = None,
+    title: str = "Reliability Diagram",
+) -> Dict[str, Any]:
+    """Generate and optionally save a reliability diagram.
+
+    A reliability diagram (calibration plot) shows how well predicted
+    probabilities match empirical frequencies.
+
+    Args:
+        per_query_df: DataFrame with per-query results
+        prob_col: Column with predicted probability
+        gold_col: Column with gold label (0/1)
+        n_bins: Number of bins for calibration curve
+        output_path: If provided, save plot to this path
+        title: Plot title
+
+    Returns:
+        Dictionary with calibration data and ECE/MCE metrics
+    """
+    # Get calibration data
+    cal_metrics = compute_calibration_metrics(
+        per_query_df, prob_col, gold_col, n_bins
+    )
+
+    if output_path:
+        try:
+            import matplotlib.pyplot as plt
+
+            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+
+            # Left plot: Reliability diagram
+            curve = cal_metrics["reliability_curve"]
+            prob_true = curve["prob_true"]
+            prob_pred = curve["prob_pred"]
+
+            ax1.plot([0, 1], [0, 1], "k--", label="Perfectly calibrated")
+            ax1.scatter(prob_pred, prob_true, s=50, alpha=0.7, label="Model")
+            ax1.plot(prob_pred, prob_true, "b-", alpha=0.5)
+            ax1.set_xlabel("Mean Predicted Probability")
+            ax1.set_ylabel("Fraction of Positives")
+            ax1.set_title(f"{title}\nECE={cal_metrics.get('ece', 0):.4f}")
+            ax1.legend()
+            ax1.set_xlim([0, 1])
+            ax1.set_ylim([0, 1])
+            ax1.grid(True, alpha=0.3)
+
+            # Right plot: Histogram of predictions
+            y_prob = per_query_df[prob_col].dropna().values
+            ax2.hist(y_prob, bins=n_bins, edgecolor="black", alpha=0.7)
+            ax2.set_xlabel("Predicted Probability")
+            ax2.set_ylabel("Count")
+            ax2.set_title("Prediction Distribution")
+            ax2.grid(True, alpha=0.3)
+
+            plt.tight_layout()
+            plt.savefig(output_path, dpi=150, bbox_inches="tight")
+            plt.close()
+
+            cal_metrics["plot_saved"] = output_path
+        except ImportError:
+            cal_metrics["plot_error"] = "matplotlib not available"
+
+    return cal_metrics
 
 
 # =============================================================================

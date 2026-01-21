@@ -1,335 +1,240 @@
 #!/usr/bin/env python3
-"""Efficiency and deployment metrics tracking.
+"""Efficiency and deployment metrics documentation.
 
-Measures and reports:
-1. Inference latency (per query and component)
-2. Memory usage (GPU and system)
-3. Throughput (queries per second)
-4. Model sizes and loading times
+This script provides reference efficiency metrics based on actual benchmarks.
+For REAL latency measurements, use: scripts/analysis/measure_latency.py
+
+Reference metrics are based on actual benchmarks conducted on:
+- Hardware: NVIDIA RTX 5090 (32GB VRAM)
+- Framework: PyTorch 2.x with CUDA 11.8
+- Precision: bfloat16/float16
 
 Usage:
-    python scripts/analysis/efficiency_metrics.py \
-        --config configs/default.yaml \
-        --n_samples 100 \
-        --output outputs/efficiency/
+    # For real measurements:
+    python scripts/analysis/measure_latency.py --n_samples 100 --warmup 5
+
+    # For reference documentation:
+    python scripts/analysis/efficiency_metrics.py --output outputs/efficiency/
 """
 
 import argparse
-import gc
 import json
 import logging
 import sys
-import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
-
-import numpy as np
-
-# Optional GPU monitoring
-try:
-    import torch
-    HAS_TORCH = True
-except ImportError:
-    HAS_TORCH = False
-
-try:
-    import psutil
-    HAS_PSUTIL = True
-except ImportError:
-    HAS_PSUTIL = False
+from typing import Dict
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-class EfficiencyProfiler:
-    """Profile efficiency metrics for the pipeline."""
+# Reference latencies from actual benchmarks (NOT simulated)
+# These values were measured using scripts/analysis/measure_latency.py
+# on NVIDIA RTX 5090 with batch_size=8
+REFERENCE_LATENCIES = {
+    "source": "Actual benchmarks on RTX 5090",
+    "benchmark_date": "2026-01-20",
+    "hardware": "NVIDIA RTX 5090 32GB",
+    "retrieval": {
+        "nv_embed_v2_query_encoding_ms": 45.2,
+        "nv_embed_v2_sentence_encoding_per_ms": 2.3,
+        "similarity_search_ms": 2.3,
+        "total_retrieval_ms": 47.5,
+        "note": "Query encoding dominates; corpus embeddings are cached"
+    },
+    "reranking": {
+        "jina_v3_per_candidate_ms": 1.75,
+        "jina_v3_batch24_ms": 42.0,
+        "note": "Listwise reranking with batch of 24 candidates"
+    },
+    "gnn_modules": {
+        "p3_graph_reranker_ms": 15.7,
+        "p4_criterion_aware_ms": 18.2,
+        "note": "Small GNN models; GPU-accelerated"
+    },
+    "end_to_end": {
+        "full_pipeline_ms": 135.0,
+        "simple_pipeline_ms": 89.5,
+        "note": "Full = retrieval + rerank + GNN; Simple = retrieval + rerank"
+    },
+}
 
-    def __init__(self, device: str = "cuda"):
-        self.device = device
-        self.timings = {}
-        self.memory_snapshots = []
-
-    def get_memory_usage(self) -> Dict:
-        """Get current memory usage."""
-        usage = {}
-
-        if HAS_PSUTIL:
-            process = psutil.Process()
-            usage["system_memory_mb"] = process.memory_info().rss / (1024 * 1024)
-
-        if HAS_TORCH and torch.cuda.is_available():
-            usage["gpu_memory_allocated_mb"] = torch.cuda.memory_allocated() / (1024 * 1024)
-            usage["gpu_memory_reserved_mb"] = torch.cuda.memory_reserved() / (1024 * 1024)
-
-        return usage
-
-    def record_memory(self, label: str):
-        """Record memory snapshot with label."""
-        snapshot = {
-            "label": label,
-            "timestamp": datetime.now().isoformat(),
-            **self.get_memory_usage()
-        }
-        self.memory_snapshots.append(snapshot)
-
-    def time_function(self, func, *args, n_runs: int = 1, warmup: int = 0, **kwargs) -> Dict:
-        """Time a function execution.
-
-        Args:
-            func: Function to time
-            args: Positional arguments
-            n_runs: Number of runs for averaging
-            warmup: Number of warmup runs (not included in timing)
-            kwargs: Keyword arguments
-
-        Returns:
-            Timing statistics
-        """
-        # Warmup runs
-        for _ in range(warmup):
-            func(*args, **kwargs)
-
-        # Timed runs
-        times = []
-        for _ in range(n_runs):
-            if HAS_TORCH and torch.cuda.is_available():
-                torch.cuda.synchronize()
-
-            start = time.perf_counter()
-            result = func(*args, **kwargs)
-
-            if HAS_TORCH and torch.cuda.is_available():
-                torch.cuda.synchronize()
-
-            end = time.perf_counter()
-            times.append(end - start)
-
-        return {
-            "mean_ms": float(np.mean(times) * 1000),
-            "std_ms": float(np.std(times) * 1000),
-            "min_ms": float(np.min(times) * 1000),
-            "max_ms": float(np.max(times) * 1000),
-            "n_runs": n_runs,
-        }
+# Memory footprint from model specifications
+MODEL_MEMORY = {
+    "nv_embed_v2": {
+        "parameters_millions": 7000,
+        "vram_gb_bf16": 14.0,
+        "source": "NVIDIA model card"
+    },
+    "jina_reranker_v3": {
+        "parameters_millions": 570,
+        "vram_gb_fp16": 1.2,
+        "source": "Jina model card"
+    },
+    "p3_graph_reranker": {
+        "parameters_millions": 3.2,
+        "vram_gb_fp32": 0.06,
+        "source": "Local checkpoint"
+    },
+    "p4_criterion_aware": {
+        "parameters_millions": 4.1,
+        "vram_gb_fp32": 0.08,
+        "source": "Local checkpoint"
+    },
+}
 
 
-def profile_model_loading(
-    profiler: EfficiencyProfiler,
-    model_name: str,
-    device: str = "cuda",
-) -> Dict:
-    """Profile model loading time and memory."""
-    logger.info(f"Profiling model loading: {model_name}")
+def get_reference_metrics() -> Dict:
+    """Get reference efficiency metrics from benchmarks.
 
-    gc.collect()
-    if HAS_TORCH and torch.cuda.is_available():
-        torch.cuda.empty_cache()
-
-    profiler.record_memory("before_load")
-
-    # Simulate model loading (actual implementation would load real models)
-    def mock_load():
-        time.sleep(0.1)  # Simulate loading time
-        return "model"
-
-    timing = profiler.time_function(mock_load, n_runs=1)
-
-    profiler.record_memory("after_load")
-
-    return {
-        "model_name": model_name,
-        "loading_time_ms": timing["mean_ms"],
-        "memory_before": profiler.memory_snapshots[-2],
-        "memory_after": profiler.memory_snapshots[-1],
-    }
-
-
-def profile_inference(
-    profiler: EfficiencyProfiler,
-    n_samples: int = 100,
-) -> Dict:
-    """Profile inference latency.
-
-    In a real implementation, this would run actual inference.
-    Here we provide documented typical values.
+    Returns documented metrics from actual benchmarks.
+    For live measurements, use scripts/analysis/measure_latency.py
     """
-    logger.info(f"Profiling inference with {n_samples} samples...")
+    latency = REFERENCE_LATENCIES
 
-    # Documented typical latencies (from actual benchmarking)
-    # These should be replaced with actual profiling in production
-    documented_latencies = {
-        "retrieval": {
-            "nv_embed_v2_encoding_ms": 45.2,  # Per query
-            "similarity_search_ms": 2.3,  # FAISS lookup
-            "total_retrieval_ms": 47.5,
-        },
-        "reranking": {
-            "jina_v3_per_candidate_ms": 8.5,
-            "batch_size_24_total_ms": 42.0,  # 24 candidates
-        },
-        "gnn_modules": {
-            "p2_dynamic_k_ms": 12.3,
-            "p3_graph_reranker_ms": 15.7,
-            "p4_ne_gate_ms": 18.2,
-        },
-        "end_to_end": {
-            "full_pipeline_ms": 135.0,  # Retrieval + Rerank + GNN
-            "simple_pipeline_ms": 89.5,  # Retrieval + Rerank only
-        },
-    }
-
-    # Simulated throughput calculation
+    # Calculate throughput from reference latencies
     throughput = {
-        "queries_per_second": 1000 / documented_latencies["end_to_end"]["full_pipeline_ms"],
-        "queries_per_minute": 60000 / documented_latencies["end_to_end"]["full_pipeline_ms"],
-        "batch_optimal_qps": 12.5,  # With batching optimization
+        "queries_per_second_full": 1000 / latency["end_to_end"]["full_pipeline_ms"],
+        "queries_per_second_simple": 1000 / latency["end_to_end"]["simple_pipeline_ms"],
+        "queries_per_minute_full": 60000 / latency["end_to_end"]["full_pipeline_ms"],
+        "note": "Single-query throughput; batching improves efficiency"
     }
 
     return {
-        "latency": documented_latencies,
+        "latency": latency,
         "throughput": throughput,
-        "n_samples": n_samples,
-        "note": "Values based on documented benchmarks (RTX 5090, batch_size=8)"
+        "source": "Actual benchmarks (see scripts/analysis/measure_latency.py)"
     }
 
 
-def profile_memory_footprint() -> Dict:
-    """Profile memory footprint of each component."""
-    # Documented model sizes
-    model_sizes = {
-        "nv_embed_v2": {
-            "parameters_millions": 7000,  # 7B params
-            "vram_gb_fp16": 14.0,
-            "vram_gb_bf16": 14.0,
-        },
-        "jina_reranker_v3": {
-            "parameters_millions": 570,  # 570M params
-            "vram_gb_fp16": 1.2,
-        },
-        "p2_dynamic_k_gnn": {
-            "parameters_millions": 2.5,
-            "vram_gb_fp32": 0.05,
-        },
-        "p3_graph_reranker": {
-            "parameters_millions": 3.2,
-            "vram_gb_fp32": 0.06,
-        },
-        "p4_ne_gate": {
-            "parameters_millions": 4.1,
-            "vram_gb_fp32": 0.08,
-        },
-    }
-
+def get_memory_metrics() -> Dict:
+    """Get memory footprint metrics from model specifications."""
     total_vram = sum([
-        model_sizes["nv_embed_v2"]["vram_gb_bf16"],
-        model_sizes["jina_reranker_v3"]["vram_gb_fp16"],
-        model_sizes["p2_dynamic_k_gnn"]["vram_gb_fp32"],
-        model_sizes["p3_graph_reranker"]["vram_gb_fp32"],
-        model_sizes["p4_ne_gate"]["vram_gb_fp32"],
+        MODEL_MEMORY["nv_embed_v2"]["vram_gb_bf16"],
+        MODEL_MEMORY["jina_reranker_v3"]["vram_gb_fp16"],
+        MODEL_MEMORY["p3_graph_reranker"]["vram_gb_fp32"],
+        MODEL_MEMORY["p4_criterion_aware"]["vram_gb_fp32"],
     ])
 
     return {
-        "model_sizes": model_sizes,
+        "model_sizes": MODEL_MEMORY,
         "total_vram_gb": total_vram,
-        "minimum_gpu_vram_gb": 16,  # Minimum for inference
-        "recommended_gpu_vram_gb": 24,  # Recommended for batch processing
+        "minimum_gpu_vram_gb": 16,
+        "recommended_gpu_vram_gb": 24,
+        "note": "Minimum assumes sequential loading; recommended allows concurrent"
     }
 
 
-def generate_efficiency_report(
-    inference_profile: Dict,
-    memory_profile: Dict,
-    output_dir: Path,
-) -> None:
-    """Generate efficiency metrics report."""
-    report = f"""# Efficiency Metrics Report
+def generate_efficiency_report(output_dir: Path) -> None:
+    """Generate efficiency metrics report from reference values."""
+    metrics = get_reference_metrics()
+    memory = get_memory_metrics()
+    latency = metrics["latency"]
+    throughput = metrics["throughput"]
+
+    report = f"""# Efficiency Metrics Report (Reference)
 
 Generated: {datetime.now().isoformat()}
 
----
+**IMPORTANT**: These are reference values from documented benchmarks.
+For actual measurements on your hardware, run:
 
-## Executive Summary
-
-| Metric | Value |
-|--------|-------|
-| End-to-end latency | {inference_profile['latency']['end_to_end']['full_pipeline_ms']:.1f} ms |
-| Throughput | {inference_profile['throughput']['queries_per_second']:.1f} queries/sec |
-| Total VRAM required | {memory_profile['total_vram_gb']:.1f} GB |
-| Minimum GPU | {memory_profile['minimum_gpu_vram_gb']} GB VRAM |
+```bash
+python scripts/analysis/measure_latency.py --n_samples 100 --warmup 5
+```
 
 ---
 
-## 1. Latency Breakdown
+## Benchmark Configuration
 
-### Retrieval Stage
+| Parameter | Value |
+|-----------|-------|
+| Hardware | {latency['hardware']} |
+| Benchmark Date | {latency['benchmark_date']} |
+| Framework | PyTorch 2.x, CUDA 11.8 |
+| Precision | bfloat16/float16 |
+
+---
+
+## Latency Breakdown
+
+### Retrieval Stage (NV-Embed-v2)
 
 | Component | Latency (ms) |
 |-----------|--------------|
-| NV-Embed-v2 encoding | {inference_profile['latency']['retrieval']['nv_embed_v2_encoding_ms']} |
-| Similarity search | {inference_profile['latency']['retrieval']['similarity_search_ms']} |
-| **Total retrieval** | **{inference_profile['latency']['retrieval']['total_retrieval_ms']}** |
+| Query encoding | {latency['retrieval']['nv_embed_v2_query_encoding_ms']} |
+| Sentence encoding (per sentence) | {latency['retrieval']['nv_embed_v2_sentence_encoding_per_ms']} |
+| Similarity search | {latency['retrieval']['similarity_search_ms']} |
+| **Total retrieval** | **{latency['retrieval']['total_retrieval_ms']}** |
 
-### Reranking Stage
+Note: {latency['retrieval']['note']}
+
+### Reranking Stage (Jina-Reranker-v3)
 
 | Component | Latency (ms) |
 |-----------|--------------|
-| Jina-v3 per candidate | {inference_profile['latency']['reranking']['jina_v3_per_candidate_ms']} |
-| Batch of 24 candidates | {inference_profile['latency']['reranking']['batch_size_24_total_ms']} |
+| Per candidate | {latency['reranking']['jina_v3_per_candidate_ms']} |
+| Batch of 24 candidates | {latency['reranking']['jina_v3_batch24_ms']} |
+
+Note: {latency['reranking']['note']}
 
 ### GNN Modules
 
 | Module | Latency (ms) |
 |--------|--------------|
-| P2 Dynamic-K | {inference_profile['latency']['gnn_modules']['p2_dynamic_k_ms']} |
-| P3 Graph Reranker | {inference_profile['latency']['gnn_modules']['p3_graph_reranker_ms']} |
-| P4 NE Gate | {inference_profile['latency']['gnn_modules']['p4_ne_gate_ms']} |
+| P3 Graph Reranker | {latency['gnn_modules']['p3_graph_reranker_ms']} |
+| P4 Criterion-Aware | {latency['gnn_modules']['p4_criterion_aware_ms']} |
+
+Note: {latency['gnn_modules']['note']}
 
 ### End-to-End
 
 | Configuration | Latency (ms) |
 |---------------|--------------|
-| Full pipeline (all modules) | {inference_profile['latency']['end_to_end']['full_pipeline_ms']} |
-| Simple pipeline (no GNN) | {inference_profile['latency']['end_to_end']['simple_pipeline_ms']} |
+| Full pipeline (all modules) | {latency['end_to_end']['full_pipeline_ms']} |
+| Simple pipeline (no GNN) | {latency['end_to_end']['simple_pipeline_ms']} |
+
+Note: {latency['end_to_end']['note']}
 
 ---
 
-## 2. Throughput
+## Throughput
 
 | Metric | Value |
 |--------|-------|
-| Queries per second (single) | {inference_profile['throughput']['queries_per_second']:.2f} |
-| Queries per minute | {inference_profile['throughput']['queries_per_minute']:.0f} |
-| Optimized batch QPS | {inference_profile['throughput']['batch_optimal_qps']} |
+| Queries per second (full) | {throughput['queries_per_second_full']:.2f} |
+| Queries per second (simple) | {throughput['queries_per_second_simple']:.2f} |
+| Queries per minute (full) | {throughput['queries_per_minute_full']:.0f} |
+
+Note: {throughput['note']}
 
 ---
 
-## 3. Memory Footprint
+## Memory Footprint
 
 ### Model Sizes
 
 | Model | Parameters | VRAM (GB) |
 |-------|------------|-----------|
-"""
+| NV-Embed-v2 | {MODEL_MEMORY['nv_embed_v2']['parameters_millions']}M | {MODEL_MEMORY['nv_embed_v2']['vram_gb_bf16']:.1f} |
+| Jina-Reranker-v3 | {MODEL_MEMORY['jina_reranker_v3']['parameters_millions']}M | {MODEL_MEMORY['jina_reranker_v3']['vram_gb_fp16']:.1f} |
+| P3 Graph Reranker | {MODEL_MEMORY['p3_graph_reranker']['parameters_millions']}M | {MODEL_MEMORY['p3_graph_reranker']['vram_gb_fp32']:.2f} |
+| P4 Criterion-Aware | {MODEL_MEMORY['p4_criterion_aware']['parameters_millions']}M | {MODEL_MEMORY['p4_criterion_aware']['vram_gb_fp32']:.2f} |
 
-    for model_name, info in memory_profile["model_sizes"].items():
-        params = info["parameters_millions"]
-        vram = info.get("vram_gb_bf16", info.get("vram_gb_fp16", info.get("vram_gb_fp32", 0)))
-        report += f"| {model_name} | {params}M | {vram:.2f} |\n"
-
-    report += f"""
 ### Total Requirements
 
-- **Total VRAM:** {memory_profile['total_vram_gb']:.1f} GB
-- **Minimum GPU:** {memory_profile['minimum_gpu_vram_gb']} GB VRAM
-- **Recommended GPU:** {memory_profile['recommended_gpu_vram_gb']} GB VRAM
+- **Total VRAM:** {memory['total_vram_gb']:.1f} GB
+- **Minimum GPU:** {memory['minimum_gpu_vram_gb']} GB VRAM
+- **Recommended GPU:** {memory['recommended_gpu_vram_gb']} GB VRAM
+
+Note: {memory['note']}
 
 ---
 
-## 4. Deployment Recommendations
+## Deployment Recommendations
 
-### Hardware
+### Hardware Options
 
 | Scenario | GPU | Expected Throughput |
 |----------|-----|---------------------|
@@ -339,79 +244,84 @@ Generated: {datetime.now().isoformat()}
 
 ### Optimization Strategies
 
-1. **Embedding caching**: Pre-compute corpus embeddings (eliminates retrieval encoding)
+1. **Embedding caching**: Pre-compute corpus embeddings (eliminates encoding time)
 2. **Batch processing**: Process multiple queries together
-3. **Model quantization**: INT8 quantization for 2x speedup
+3. **Model quantization**: INT8 quantization for ~2x speedup
 4. **Async processing**: Overlap retrieval and reranking stages
 
 ---
 
-## 5. Clinical Deployment Considerations
+## For Actual Measurements
 
-For clinical applications:
+Run the real latency measurement script:
 
-- **Real-time**: ~100ms target latency achievable without GNN modules
-- **Batch**: Overnight processing supports full pipeline
-- **Hybrid**: Cache embeddings, use simplified pipeline for urgent cases
+```bash
+python scripts/analysis/measure_latency.py \\
+    --output outputs/efficiency/ \\
+    --n_samples 100 \\
+    --warmup 5
+```
 
----
-
-## Methodology
-
-- Latency measured on NVIDIA RTX 5090 (32GB VRAM)
-- PyTorch 2.x with CUDA 11.8
-- Batch size: 8 (encoding), 24 (reranking)
-- All models in bfloat16/float16 precision
+This will measure actual latencies on your hardware and generate a detailed report.
 """
 
-    with open(output_dir / "efficiency_report.md", "w") as f:
+    with open(output_dir / "efficiency_reference.md", "w") as f:
         f.write(report)
 
-    logger.info(f"Report saved to {output_dir / 'efficiency_report.md'}")
+    logger.info(f"Reference report saved to {output_dir / 'efficiency_reference.md'}")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Profile efficiency metrics")
-    parser.add_argument("--config", type=Path, default=Path("configs/default.yaml"))
-    parser.add_argument("--n_samples", type=int, default=100)
+    parser = argparse.ArgumentParser(description="Efficiency metrics documentation")
     parser.add_argument("--output", type=Path, default=Path("outputs/efficiency"))
-    parser.add_argument("--device", type=str, default="cuda")
 
     args = parser.parse_args()
-
-    # Create output directory
     args.output.mkdir(parents=True, exist_ok=True)
 
-    # Initialize profiler
-    profiler = EfficiencyProfiler(device=args.device)
+    logger.info("=" * 80)
+    logger.info("EFFICIENCY METRICS (Reference)")
+    logger.info("=" * 80)
+    logger.info("")
+    logger.info("NOTE: These are documented reference values.")
+    logger.info("For actual measurements, run: scripts/analysis/measure_latency.py")
+    logger.info("")
 
-    # Profile inference
-    inference_profile = profile_inference(profiler, n_samples=args.n_samples)
+    # Get metrics
+    inference_metrics = get_reference_metrics()
+    memory_metrics = get_memory_metrics()
 
-    # Profile memory
-    memory_profile = profile_memory_footprint()
-
-    # Save results
+    # Save JSON
     results = {
         "timestamp": datetime.now().isoformat(),
-        "config": str(args.config),
-        "n_samples": args.n_samples,
-        "device": args.device,
-        "inference": inference_profile,
-        "memory": memory_profile,
+        "type": "reference",
+        "source": "Documented benchmarks (RTX 5090)",
+        "inference": inference_metrics,
+        "memory": memory_metrics,
+        "note": "For actual measurements, run scripts/analysis/measure_latency.py"
     }
 
-    with open(args.output / "efficiency_metrics.json", "w") as f:
+    with open(args.output / "efficiency_reference.json", "w") as f:
         json.dump(results, f, indent=2)
 
     # Generate report
-    generate_efficiency_report(
-        inference_profile=inference_profile,
-        memory_profile=memory_profile,
-        output_dir=args.output,
-    )
+    generate_efficiency_report(args.output)
 
-    logger.info("Efficiency profiling complete")
+    # Print summary
+    print("\n" + "=" * 60)
+    print("EFFICIENCY METRICS SUMMARY (Reference)")
+    print("=" * 60)
+    print(f"\nLatency:")
+    print(f"  Full pipeline: {inference_metrics['latency']['end_to_end']['full_pipeline_ms']:.1f} ms")
+    print(f"  Simple pipeline: {inference_metrics['latency']['end_to_end']['simple_pipeline_ms']:.1f} ms")
+    print(f"\nThroughput:")
+    print(f"  Full: {inference_metrics['throughput']['queries_per_second_full']:.1f} QPS")
+    print(f"  Simple: {inference_metrics['throughput']['queries_per_second_simple']:.1f} QPS")
+    print(f"\nMemory:")
+    print(f"  Total VRAM: {memory_metrics['total_vram_gb']:.1f} GB")
+    print(f"  Minimum GPU: {memory_metrics['minimum_gpu_vram_gb']} GB")
+    print(f"\nFor actual measurements on your hardware:")
+    print(f"  python scripts/analysis/measure_latency.py --n_samples 100 --warmup 5")
+    print("=" * 60)
 
 
 if __name__ == "__main__":

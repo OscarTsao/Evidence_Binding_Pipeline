@@ -161,8 +161,8 @@ ABLATION_CONFIGS = {
         "existing_results_path": "outputs/final_research_eval/20260118_031312_complete",
     },
     "7_exclude_a10": {
-        "name": "7. Full Pipeline (Exclude A.10 Suicidal Ideation)",
-        "description": "Full pipeline excluding A.10 criterion for sensitivity analysis",
+        "name": "7. Full Pipeline (Exclude A.10)",
+        "description": "Full pipeline excluding A.10 (SPECIAL_CASE) criterion for sensitivity analysis",
         "components": {
             "retriever": "nv-embed-v2",
             "reranker": "jina-reranker-v3",
@@ -174,7 +174,67 @@ ABLATION_CONFIGS = {
         "top_k_retriever": 24,
         "top_k_final": "dynamic",
         "requires_gnn": True,
-        "exclude_criteria": ["A.10"],  # Exclude suicidal ideation criterion
+        "exclude_criteria": ["A.10"],  # Exclude SPECIAL_CASE criterion
+    },
+    # Additional ablations for comprehensive analysis
+    "8_no_reranker": {
+        "name": "8. Retriever + GNN (No Neural Reranker)",
+        "description": "Ablate neural reranker to measure its contribution",
+        "components": {
+            "retriever": "nv-embed-v2",
+            "reranker": None,
+            "p3_graph": True,
+            "p2_dynamic_k": True,
+            "p4_ne_gate": True,
+            "three_state_gate": True,
+        },
+        "top_k_retriever": 24,
+        "top_k_final": "dynamic",
+        "requires_gnn": True,
+    },
+    "9_no_calibration": {
+        "name": "9. Full Pipeline (No Calibration)",
+        "description": "Ablate isotonic calibration to measure its impact on clinical thresholds",
+        "components": {
+            "retriever": "nv-embed-v2",
+            "reranker": "jina-reranker-v3",
+            "p3_graph": True,
+            "p2_dynamic_k": True,
+            "p4_ne_gate": True,
+            "three_state_gate": True,
+            "calibration": False,
+        },
+        "top_k_retriever": 24,
+        "top_k_final": "dynamic",
+        "requires_gnn": True,
+    },
+    "10_bge_m3_retriever": {
+        "name": "10. BGE-M3 Hybrid Retriever Baseline",
+        "description": "Compare hybrid (dense+sparse+ColBERT) vs pure dense retrieval",
+        "components": {
+            "retriever": "bge-m3",
+            "reranker": "jina-reranker-v3",
+            "p3_graph": False,
+            "p2_dynamic_k": False,
+            "p4_ne_gate": False,
+            "three_state_gate": False,
+        },
+        "top_k_retriever": 24,
+        "top_k_final": 10,
+    },
+    "11_smaller_retriever": {
+        "name": "11. Smaller Retriever (E5-base)",
+        "description": "Efficiency vs quality trade-off with smaller retriever",
+        "components": {
+            "retriever": "e5-base-v2",
+            "reranker": "jina-reranker-v3",
+            "p3_graph": False,
+            "p2_dynamic_k": False,
+            "p4_ne_gate": False,
+            "three_state_gate": False,
+        },
+        "top_k_retriever": 24,
+        "top_k_final": 10,
     },
 }
 
