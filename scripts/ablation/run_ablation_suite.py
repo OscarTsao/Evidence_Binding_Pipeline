@@ -71,10 +71,10 @@ logger = get_logger(__name__)
 # Ablation configuration definitions
 ABLATION_CONFIGS = {
     "1_retriever_only": {
-        "name": "1. Retriever Only (NV-Embed-v2)",
-        "description": "Dense retrieval baseline with NV-Embed-v2, no reranking",
+        "name": "1. Retriever Only (BGE-M3)",
+        "description": "Hybrid retrieval baseline with BGE-M3, no reranking",
         "components": {
-            "retriever": "nv-embed-v2",
+            "retriever": "bge-m3",
             "reranker": None,
             "p3_graph": False,
             "p2_dynamic_k": False,
@@ -86,9 +86,9 @@ ABLATION_CONFIGS = {
     },
     "2_retriever_jina": {
         "name": "2. Retriever + Jina Reranker",
-        "description": "Dense retrieval + cross-encoder reranking",
+        "description": "Hybrid retrieval + cross-encoder reranking",
         "components": {
-            "retriever": "nv-embed-v2",
+            "retriever": "bge-m3",
             "reranker": "jina-reranker-v3",
             "p3_graph": False,
             "p2_dynamic_k": False,
@@ -102,7 +102,7 @@ ABLATION_CONFIGS = {
         "name": "3. + P3 Graph Reranker",
         "description": "Add GNN-based graph reranker for candidate refinement",
         "components": {
-            "retriever": "nv-embed-v2",
+            "retriever": "bge-m3",
             "reranker": "jina-reranker-v3",
             "p3_graph": True,
             "p2_dynamic_k": False,
@@ -117,7 +117,7 @@ ABLATION_CONFIGS = {
         "name": "4. + P2 Dynamic-K Selection",
         "description": "Add GNN-based dynamic K selection (K ∈ [3,20])",
         "components": {
-            "retriever": "nv-embed-v2",
+            "retriever": "bge-m3",
             "reranker": "jina-reranker-v3",
             "p3_graph": True,
             "p2_dynamic_k": True,
@@ -132,7 +132,7 @@ ABLATION_CONFIGS = {
         "name": "5. + P4 NE Gate (Fixed K)",
         "description": "Add GNN-based no-evidence detection (binary classifier)",
         "components": {
-            "retriever": "nv-embed-v2",
+            "retriever": "bge-m3",
             "reranker": "jina-reranker-v3",
             "p3_graph": True,
             "p2_dynamic_k": False,
@@ -147,7 +147,7 @@ ABLATION_CONFIGS = {
         "name": "6. Full Pipeline (All Components)",
         "description": "Complete system with all modules including 3-state clinical gate",
         "components": {
-            "retriever": "nv-embed-v2",
+            "retriever": "bge-m3",
             "reranker": "jina-reranker-v3",
             "p3_graph": True,
             "p2_dynamic_k": True,
@@ -164,7 +164,7 @@ ABLATION_CONFIGS = {
         "name": "7. Full Pipeline (Exclude A.10)",
         "description": "Full pipeline excluding A.10 (SPECIAL_CASE) criterion for sensitivity analysis",
         "components": {
-            "retriever": "nv-embed-v2",
+            "retriever": "bge-m3",
             "reranker": "jina-reranker-v3",
             "p3_graph": True,
             "p2_dynamic_k": True,
@@ -181,7 +181,7 @@ ABLATION_CONFIGS = {
         "name": "8. Retriever + GNN (No Neural Reranker)",
         "description": "Ablate neural reranker to measure its contribution",
         "components": {
-            "retriever": "nv-embed-v2",
+            "retriever": "bge-m3",
             "reranker": None,
             "p3_graph": True,
             "p2_dynamic_k": True,
@@ -196,7 +196,7 @@ ABLATION_CONFIGS = {
         "name": "9. Full Pipeline (No Calibration)",
         "description": "Ablate isotonic calibration to measure its impact on clinical thresholds",
         "components": {
-            "retriever": "nv-embed-v2",
+            "retriever": "bge-m3",
             "reranker": "jina-reranker-v3",
             "p3_graph": True,
             "p2_dynamic_k": True,
