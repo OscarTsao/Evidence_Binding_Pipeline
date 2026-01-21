@@ -21,24 +21,34 @@ Sentence-criterion evidence retrieval for mental health assessment using DSM-5 M
 
 ### 1. Environment Setup
 
-Two conda environments required (dependency conflicts):
+Two conda environments required (NV-Embed-v2 requires older transformers):
 
 ```bash
-# Retriever environment (NV-Embed-v2 requires transformers<=4.44)
-conda create -n nv-embed-v2 python=3.10 -y
+# Environment 1: NV-Embed-v2 retriever (transformers==4.44.2)
+conda env create -f environment_nv_embed.yaml
 conda activate nv-embed-v2
-pip install -r envs/requirements-retriever.txt
 
-# Main environment (reranking, GNN, evaluation)
-conda create -n llmhe python=3.10 -y
+# Environment 2: Main pipeline (reranking, GNN, LLM, evaluation)
+conda env create -f environment_llmhe.yaml
 conda activate llmhe
-pip install -r envs/requirements-main.txt
-pip install -e .
 ```
 
-### 2. Verify Installation
+### 2. Encode Corpus (one-time setup)
 
 ```bash
+# In nv-embed-v2 environment - encodes corpus embeddings
+conda activate nv-embed-v2
+python scripts/encode_nv_embed.py --config configs/default.yaml
+```
+
+This caches NV-Embed-v2 embeddings to disk. Run once per corpus change.
+
+### 3. Verify Installation
+
+```bash
+# In llmhe environment
+conda activate llmhe
+
 # Run tests
 pytest -q
 
@@ -46,7 +56,7 @@ pytest -q
 python scripts/verification/verify_checksums.py
 ```
 
-### 3. Reproduce Results
+### 4. Reproduce Results
 
 ```bash
 # Full reproduction guide

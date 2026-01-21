@@ -1,0 +1,32 @@
+name: nv-embed-v2
+channels:
+  - pytorch-nightly
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - cudatoolkit=12.8
+  - pip:
+    # Core ML
+    - torch==2.11.0.dev20260109+cu128
+    - transformers==4.44.2  # PINNED - newer versions break NV-Embed-v2
+    - sentence-transformers==2.7.0
+    - accelerate>=1.0.0
+    - safetensors>=0.4.0
+
+    # Quantization (optional, for memory efficiency)
+    - bitsandbytes>=0.47.0
+
+    # Data processing
+    - numpy>=1.26.0,<2.0  # numpy 1.x for compatibility
+    - pandas>=2.0.0
+    - PyYAML>=6.0
+
+    # Utilities
+    - tqdm>=4.60.0
+    - colorlog>=6.0.0
+
+    # Install the package in editable mode
+    - -e .

@@ -26,12 +26,11 @@ class TestRequiredScriptsExist:
         "scripts/build_sentence_corpus.py",
         "scripts/eval_zoo_pipeline.py",
         "scripts/audit_splits.py",
-        "scripts/encode_corpus.py",
+        "scripts/encode_nv_embed.py",  # NV-Embed-v2 encoding (run in nv-embed-v2 env)
         "scripts/verification/metric_crosscheck.py",
         "scripts/verification/audit_splits_and_leakage.py",
         "scripts/verification/generate_publication_plots.py",
         "scripts/reporting/package_paper_bundle.py",
-        "scripts/ablation/run_ablation_suite.py",
         "scripts/clinical/run_clinical_high_recall_eval.py",
         "scripts/robustness/run_multi_seed_eval.py",
         "scripts/verification/verify_checksums.py",

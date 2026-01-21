@@ -1,7 +1,12 @@
-"""Zoo-based pipeline using retriever and reranker zoos.
+"""Zoo-based pipeline using NV-Embed-v2 retriever and Jina-Reranker-v3.
 
-This pipeline supports dynamic selection of retrievers and rerankers from the zoo,
-enabling use of the best HPO-discovered model combinations.
+Best Pipeline Configuration (from HPO):
+- Retriever: NV-Embed-v2 (nDCG@10 = 0.8658)
+- Reranker: Jina-Reranker-v3
+
+Two-Environment Architecture:
+1. nv-embed-v2 env: Run scripts/encode_nv_embed.py to cache corpus embeddings
+2. llmhe env: Run this pipeline which loads cached embeddings and performs reranking
 """
 
 from __future__ import annotations
@@ -196,8 +201,8 @@ def load_zoo_pipeline_from_config(config_path: Path) -> ZooPipeline:
     models_cfg = cfg.get("models", {})
     retriever_cfg = cfg.get("retriever", {})
 
-    # Support both new and legacy config formats
-    retriever_name = models_cfg.get("retriever_name", "bge-m3")
+    # Default to best HPO models
+    retriever_name = models_cfg.get("retriever_name", "nv-embed-v2")
     reranker_name = models_cfg.get("reranker_name", "jina-reranker-v3")
 
     pipeline_config = ZooPipelineConfig(

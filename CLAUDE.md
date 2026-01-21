@@ -90,9 +90,10 @@ The recommended pipeline using retriever and reranker zoos:
 2. **Stage 2 - Reranking:** Jina-Reranker-v3 (top-10)
 
 ### Key Modules
-- `src/final_sc_review/retriever/zoo.py` - Retriever zoo with 25+ models
-- `src/final_sc_review/reranker/zoo.py` - Reranker zoo with 15+ models
+- `src/final_sc_review/retriever/zoo.py` - NV-Embed-v2 retriever (simplified)
+- `src/final_sc_review/reranker/zoo.py` - Jina-Reranker-v3 (simplified)
 - `src/final_sc_review/gnn/` - GNN modules (P1-P4)
+- `src/final_sc_review/llm/` - LLM integration (verifier, A.10 classifier)
 - `src/final_sc_review/metrics/ranking.py` - Ranking metrics
 
 ### GNN Modules (`src/final_sc_review/gnn/`)
@@ -110,9 +111,11 @@ The recommended pipeline using retriever and reranker zoos:
 - Training: `scripts/gnn/train_p3_graph_reranker.py`
 - Evaluation: `scripts/gnn/run_p3_integration.py`
 
-### Deprecated Modules
-- `src/final_sc_review/pipeline/three_stage.py` - Use `zoo_pipeline.py` instead
-- `src/final_sc_review/hpo/objective_training.py` - Use `objective_training_v2.py` instead
+### Removed/Deprecated Code
+- Legacy three-stage pipeline (BGE-M3 retriever) - removed
+- HPO/Ablation scripts - removed (best config is now fixed)
+- 24 other retrievers - removed (only NV-Embed-v2 kept)
+- 14 other rerankers - removed (only Jina-Reranker-v3 kept)
 
 ## Key Invariants
 
@@ -192,8 +195,10 @@ src/final_sc_review/
 └── utils/          # Shared utilities
 
 scripts/
-├── gnn/            # GNN training and evaluation
-├── verification/   # Metric verification and audits
-├── llm/            # LLM experiments
-└── ablation/       # Ablation studies
+├── encode_nv_embed.py  # Encode corpus with NV-Embed-v2 (run in nv-embed-v2 env)
+├── eval_zoo_pipeline.py # Evaluate pipeline
+├── run_single_zoo.py    # Single query inference
+├── gnn/                 # GNN training and evaluation
+├── verification/        # Metric verification and audits
+└── llm/                 # LLM experiments
 ```
