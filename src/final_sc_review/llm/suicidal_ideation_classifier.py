@@ -1,4 +1,8 @@
-"""A.10-specific LLM classifier for suicidal ideation detection."""
+"""A.9 Suicidal Ideation LLM classifier.
+
+This classifier handles DSM-5 Criterion A.9 (Suicidal Ideation), NOT A.10.
+A.10 is SPECIAL_CASE (expert discrimination cases per ReDSM5 taxonomy).
+"""
 
 import json
 import logging
@@ -11,14 +15,22 @@ from .base import LLMBase
 logger = logging.getLogger(__name__)
 
 
-class A10Classifier(LLMBase):
-    """Specialized LLM classifier for A.10 (suicidal ideation)."""
-    
-    A10_PROMPT_TEMPLATE = """You are an expert clinical psychologist specializing in suicide risk assessment. Your task is to detect evidence of suicidal ideation in social media posts.
+class SuicidalIdeationClassifier(LLMBase):
+    """Specialized LLM classifier for A.9 (Suicidal Ideation).
+
+    DSM-5 Criterion A.9: Recurrent thoughts of death (not just fear of dying),
+    recurrent suicidal ideation without a specific plan, or a suicide attempt
+    or a specific plan for committing suicide.
+
+    Note: This was previously misnamed A10Classifier. A.10 is SPECIAL_CASE
+    (expert discrimination cases), not suicidal ideation.
+    """
+
+    PROMPT_TEMPLATE = """You are an expert clinical psychologist specializing in suicide risk assessment. Your task is to detect evidence of suicidal ideation in social media posts.
 
 **Post**: {post_text}
 
-**DSM-5 Criterion A.10**: Recurrent thoughts of death (not just fear of dying), recurrent suicidal ideation without a specific plan, or a suicide attempt or a specific plan for committing suicide.
+**DSM-5 Criterion A.9 (Suicidal Ideation)**: Recurrent thoughts of death (not just fear of dying), recurrent suicidal ideation without a specific plan, or a suicide attempt or a specific plan for committing suicide.
 
 **Task**: Determine if this post contains evidence of suicidal ideation. Return ONLY a JSON object:
 {{
@@ -38,24 +50,24 @@ class A10Classifier(LLMBase):
 **Important**: Look for euphemistic language ("end it all", "not wake up", "better off without me").
 
 Your JSON response:"""
-    
+
     def classify(
         self,
         post_text: str,
         self_consistency_runs: int = 3,
     ) -> Dict:
-        """Classify A.10 suicidal ideation.
-        
+        """Classify A.9 suicidal ideation.
+
         Args:
             post_text: Full post text
             self_consistency_runs: Number of runs for self-consistency
-            
+
         Returns:
             Dict with has_suicidal_ideation, severity, confidence, evidence_sentences, rationale
         """
         # Create prompt
-        prompt = self.A10_PROMPT_TEMPLATE.format(post_text=post_text)
-        
+        prompt = self.PROMPT_TEMPLATE.format(post_text=post_text)
+
         # Generate multiple responses for high-stakes decision
         if self_consistency_runs > 1:
             responses = self.generate_multiple(
@@ -65,7 +77,7 @@ Your JSON response:"""
             )
         else:
             responses = [self.generate(prompt, use_cache=True, temperature=0.0)]
-        
+
         # Parse responses
         parsed_responses = []
         for resp in responses:
@@ -73,8 +85,8 @@ Your JSON response:"""
                 parsed = self._extract_json(resp)
                 parsed_responses.append(parsed)
             except Exception as e:
-                logger.warning(f"Failed to parse A.10 response: {e}")
-        
+                logger.warning(f"Failed to parse A.9 classifier response: {e}")
+
         if not parsed_responses:
             # Fallback: assume positive for safety (conservative)
             return {
@@ -85,32 +97,32 @@ Your JSON response:"""
                 "rationale": "Failed to parse LLM response - flagged for manual review",
                 "self_consistency_score": 0.0
             }
-        
+
         # Compute self-consistency
         has_si_votes = [r.get("has_suicidal_ideation", False) for r in parsed_responses]
         consistency_score = sum(has_si_votes) / len(has_si_votes)
-        
+
         # Conservative: flag if ANY run detected suicidal ideation
         majority_has_si = consistency_score > 0.0  # Even 1/3 triggers flag
-        
+
         # Use most severe severity
         severities = [r.get("severity", "none") for r in parsed_responses]
         severity_order = ["none", "passive", "active", "plan"]
         max_severity = max(severities, key=lambda s: severity_order.index(s) if s in severity_order else 0)
-        
+
         # Average confidence
         confidences = [r.get("confidence", 0.5) for r in parsed_responses]
         avg_confidence = np.mean(confidences)
-        
+
         # Collect all evidence sentences
         all_evidence = []
         for r in parsed_responses:
             all_evidence.extend(r.get("evidence_sentences", []))
         unique_evidence = list(set(all_evidence))
-        
+
         # Use rationale from first response
         rationale = parsed_responses[0].get("rationale", "")
-        
+
         return {
             "has_suicidal_ideation": majority_has_si,
             "severity": max_severity,
@@ -120,11 +132,11 @@ Your JSON response:"""
             "self_consistency_score": float(consistency_score),
             "n_runs": len(parsed_responses),
         }
-    
+
     def _extract_json(self, response: str) -> Dict:
         """Extract JSON object from LLM response."""
         response = response.strip()
-        
+
         # Remove markdown code blocks if present
         if "```json" in response:
             start = response.index("```json") + 7
@@ -134,10 +146,14 @@ Your JSON response:"""
             start = response.index("```") + 3
             end = response.index("```", start)
             response = response[start:end].strip()
-        
+
         # Find first { and last }
         start = response.index("{")
         end = response.rindex("}") + 1
         json_str = response[start:end]
-        
+
         return json.loads(json_str)
+
+
+# Backward compatibility alias (deprecated)
+A10Classifier = SuicidalIdeationClassifier
