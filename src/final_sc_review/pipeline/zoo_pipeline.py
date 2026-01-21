@@ -137,14 +137,12 @@ class ZooPipeline:
             ]
         else:
             # Extract candidate info for reranking
-            candidate_uids = [r.sent_uid for r in retrieval_results]
-            candidate_texts = [r.text for r in retrieval_results]
+            candidates = [(r.sent_uid, r.text) for r in retrieval_results]
 
             # Rerank
             rerank_results = self.reranker.rerank(
                 query=query,
-                documents=candidate_texts,
-                doc_ids=candidate_uids,
+                candidates=candidates,
                 top_k=top_k,
             )
 

@@ -223,10 +223,10 @@ ABLATION_CONFIGS = {
         "top_k_final": 10,
     },
     "11_smaller_retriever": {
-        "name": "11. Smaller Retriever (E5-base)",
+        "name": "11. Smaller Retriever (E5-large)",
         "description": "Efficiency vs quality trade-off with smaller retriever",
         "components": {
-            "retriever": "e5-base-v2",
+            "retriever": "e5-large-v2",
             "reranker": "jina-reranker-v3",
             "p3_graph": False,
             "p2_dynamic_k": False,
