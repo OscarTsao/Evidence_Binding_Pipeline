@@ -9,7 +9,7 @@ The Evidence Binding Pipeline is a multi-stage retrieval system for identifying 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    Input Processing                          │
-│  Post Text + DSM-5 Criterion Query                          │
+│  Post Text + DSM-5 Criterion Query (A.1-A.9)                │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -28,24 +28,36 @@ The Evidence Binding Pipeline is a multi-stage retrieval system for identifying 
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│              Stage 3: Graph Reranking (P3 GNN)              │
-│  Models sentence relationships via graph convolution         │
+│              Stage 3: P3 Graph Reranker (GNN #1)            │
+│  Architecture: SAGE + Residual + GELU                       │
+│  Refines scores via sentence graph structure                │
 │  +10.48% nDCG@10 improvement (0.7330 → 0.8206)             │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│              Stage 4: No-Evidence Detection (P4 GNN)        │
-│  Criterion-Aware Heterogeneous Graph Classification         │
+│              Stage 4: P2 Dynamic-K Selection (GNN #2)       │
+│  Architecture: GCN + Regressor                              │
+│  Predicts optimal K ∈ [3, 20] based on query difficulty     │
+│  +2.7% hit rate improvement                                 │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Stage 5: P4 No-Evidence Detection (GNN #3)     │
+│  Architecture: Heterogeneous GNN (criterion-aware)          │
+│  Binary classification: has_evidence vs no_evidence         │
 │  AUROC = 0.8972                                             │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                    Output                                    │
-│  Ranked evidence sentences + confidence scores              │
+│  Ranked evidence sentences + confidence + has_evidence flag │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+**Note:** P1 (original NE Gate) is deprecated (AUROC 0.577) and replaced by P4.
 
 ---
 

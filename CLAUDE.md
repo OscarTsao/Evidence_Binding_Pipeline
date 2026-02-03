@@ -189,15 +189,19 @@ The recommended pipeline using retriever and reranker zoos:
 
 ### GNN Modules (`src/final_sc_review/gnn/`)
 
-| Module | Status | Description | Key Metric |
-|--------|--------|-------------|------------|
-| P1 | Deprecated | NE Gate (no-evidence detection) | AUROC=0.577 |
-| P2 | Production | Dynamic-K selection | Adaptive cutoff |
-| P3 | Production | Graph Reranker (SAGE+Residual) | nDCG@10 +10.48% (5-fold CV) |
-| P4 | Production | Criterion-Aware GNN | AUROC=0.8972 |
+**3 Production GNN modules** (P1 deprecated):
 
-**P3 Graph Reranker** uses sentence graph structure to refine reranker scores:
-- Checkpoints: `outputs/gnn_research/p3_retrained/20260120_190745/`
+| Module | Status | Description | Architecture | Key Metric |
+|--------|--------|-------------|--------------|------------|
+| P1 | ❌ Deprecated | NE Gate (replaced by P4) | Simple GCN | AUROC=0.577 |
+| P2 | ✅ Production | Dynamic-K selection | GCN + Regressor | +2.7% hit rate |
+| P3 | ✅ Production | Graph Reranker | **SAGE+Residual+GELU** | **nDCG@10 +10.48%** |
+| P4 | ✅ Production | No-Evidence Detection | HeteroGNN | AUROC=0.8972 |
+
+**Pipeline order:** Retriever → Reranker → P3 → P2 → P4 → Output
+
+**P3 Graph Reranker** (main improvement) uses sentence graph structure to refine reranker scores:
+- Checkpoints: `outputs/gnn_research/p3_retrained/`
 - Graph cache: `data/cache/gnn/rebuild_20260120/`
 - Training: `scripts/gnn/train_p3_graph_reranker.py`
 - Evaluation: `scripts/gnn/run_p3_integration.py`
