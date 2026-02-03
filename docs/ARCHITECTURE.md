@@ -142,13 +142,13 @@ Input Graph Structure:
                               ▼
 ┌───────────────────────────────────────────────────────────┐
 │  Input Projection: Linear(input_dim, hidden_dim)          │
-│  → ReLU → Dropout                                          │
+│  → GELU → Dropout                                          │
 └───────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌───────────────────────────────────────────────────────────┐
 │  GNN Layers (configurable: gcn, sage, gat, gatv2)         │
-│  h^(l+1) = ReLU(GNN(h^(l), A)) + Residual                │
+│  h^(l+1) = GELU(GNN(h^(l), A)) + Residual                │
 │  → Dropout between layers                                  │
 └───────────────────────────────────────────────────────────┘
                               │
@@ -181,9 +181,10 @@ for i, j in candidate_pairs:
 gnn:
   gnn_type: sage              # Options: gcn, sage, gat, gatv2
   hidden_dim: 128             # GNN hidden dimension
-  num_layers: 1               # Number of GNN layers
+  num_layers: 2               # Number of GNN layers
   num_heads: 2                # Attention heads (for gat/gatv2)
   dropout: 0.05               # Dropout rate
+  activation: gelu            # GELU activation (best)
   alpha_init: 0.65            # Initial α for score fusion
   learn_alpha: true           # Make α learnable
   use_residual: true          # Residual connections (+0.78%)
@@ -197,11 +198,8 @@ training:
   patience: 10                # Early stopping patience
 
 loss:
-  type: margin_ranking        # Pairwise margin ranking loss
+  type: margin_ranking        # Simple pairwise margin ranking loss
   margin: 0.1                 # Margin value
-  alpha_rank: 1.0             # Ranking loss weight
-  alpha_align: 0.5            # Alignment loss weight
-  alpha_reg: 0.1              # Regularization weight
 ```
 
 ### Training Details
@@ -273,10 +271,11 @@ classification:
 |--------|--------|---------|--------------|------------|
 | P1 | Deprecated | No-evidence gate | Simple GCN | AUROC 0.577 |
 | P2 | Production | Dynamic-K selection | GCN + regressor | +2.7% hit rate |
-| P3 | Production | Graph reranker | SAGE+Residual | nDCG@10 +10.48% |
+| P3 | **Production** | Graph reranker | **SAGE+Residual+GELU** | **nDCG@10 +10.48%** |
 | P4 | Production | Criterion-aware classification | HeteroGNN | AUROC 0.8972 |
 
-**Available GNN architectures for P3:** GCN, SAGE (default), GAT, GATv2
+**Best P3 GNN configuration:** SAGE + Residual + GELU (verified via comprehensive ablation)
+**Available GNN architectures:** GCN, SAGE (best), GAT, GATv2
 
 ---
 
@@ -364,7 +363,9 @@ Each `fold_X.pt` contains:
 ### Main Configuration (`configs/default.yaml`)
 ```yaml
 # DEFAULT CONFIGURATION - BEST MODEL COMBO
-# Updated: 2026-01-24 based on 5-fold CV validated results
+# Updated: 2026-02-03 based on comprehensive ablation (5-fold CV)
+# Best: NV-Embed-v2 + Jina-Reranker-v3 + SAGE+Residual+GELU GNN
+# Performance: nDCG@10 = 0.7330 → 0.8206 (+10.48%)
 
 models:
   retriever_name: nv-embed-v2
@@ -382,13 +383,15 @@ reranker:
   use_listwise: true
 
 gnn:
-  enabled: true
-  checkpoint_dir: outputs/gnn_research/p3_retrained/20260120_190745/
+  architecture: sage          # Best: SAGE + Residual
   hidden_dim: 128
   num_layers: 2
-  dropout: 0.2
-  alpha_init: 0.7
+  dropout: 0.05
+  activation: gelu            # GELU activation
+  alpha_init: 0.65
   learn_alpha: true
+  use_residual: true          # +0.78% improvement
+  use_layer_norm: false       # LayerNorm hurts (-2.38%)
 
 split:
   seed: 42
