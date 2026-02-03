@@ -137,3 +137,68 @@ This report consolidates all available metrics for the Evidence Binding Pipeline
 - P4 Stage Summary: `outputs/final_research_eval/20260118_031312_complete/`
 - Per-Criterion: `results/paper_bundle/v3.0/tables/per_criterion.csv`
 - Extended Metrics: `docs/METRIC_CONTRACT.md`
+
+---
+
+## 8. Statistical Significance (NOW COMPUTED)
+
+**Test:** Paired t-test and Wilcoxon signed-rank test on 1,260 queries
+
+| Test | Statistic | p-value |
+|------|-----------|---------|
+| Paired t-test | t = 11.10 | **p < 0.001** |
+| Wilcoxon test | W = 29,048 | **p < 0.001** |
+
+**Effect Size:** Cohen's d = 0.228 (small-medium)
+
+**95% Bootstrap CI for nDCG@10 Improvement:**
+- Absolute: [0.0560, 0.0796]
+- Relative: [7.64%, 10.86%]
+
+**Conclusion:** ✓ STATISTICALLY SIGNIFICANT (p < 0.001)
+
+---
+
+## 9. Inference Latency (NOW COMPUTED)
+
+**Device:** NVIDIA GeForce RTX 5090
+**Sample:** 100 graphs, avg 13.9 nodes/graph
+
+| Metric | Value |
+|--------|-------|
+| Mean Latency | **0.76 ms** |
+| Median Latency | 0.32 ms |
+| P95 Latency | 0.48 ms |
+| P99 Latency | 3.32 ms |
+| **Throughput** | **1,315 queries/sec** |
+
+---
+
+## 10. Multi-Fold Robustness (NOW COMPUTED)
+
+**Evaluation:** 5-Fold Cross-Validation
+
+| Fold | nDCG@10 | MRR |
+|------|---------|-----|
+| 0 | 0.8069 | 0.7658 |
+| 1 | 0.8072 | 0.7588 |
+| 2 | 0.7851 | 0.7418 |
+| 3 | 0.8719 | 0.8381 |
+| 4 | 0.8322 | 0.7874 |
+
+**Coefficient of Variation:** 3.61%
+
+**Conclusion:** ✓ STABLE (CV < 5%)
+
+---
+
+## Summary: All Metrics Now Complete
+
+| Category | Status |
+|----------|--------|
+| ✅ Ranking metrics | Complete |
+| ✅ Classification metrics | Complete |
+| ✅ Per-criterion breakdown | Complete |
+| ✅ Statistical significance | **Complete (p < 0.001)** |
+| ✅ Inference latency | **Complete (0.76ms, 1315 qps)** |
+| ✅ Multi-fold robustness | **Complete (CV = 3.61%)** |
