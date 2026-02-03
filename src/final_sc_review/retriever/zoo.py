@@ -26,6 +26,11 @@ from final_sc_review.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
+# Module-level cache for query embeddings (shared across instances)
+_QUERY_EMBEDDING_CACHE: Dict[str, np.ndarray] = {}
+_QUERY_CACHE_MAX_SIZE = 1000
+
+
 @dataclass
 class RetrievalResult:
     """Standard result format for all retrievers."""
@@ -96,6 +101,10 @@ class NVEmbedRetriever(BaseRetriever):
 
     For query encoding, it uses sentence-transformers which works
     in the llmhe environment.
+
+    Features:
+    - Query embedding caching for repeated queries (LRU-style)
+    - Corpus fingerprint caching for faster validation
     """
 
     def __init__(
@@ -104,12 +113,60 @@ class NVEmbedRetriever(BaseRetriever):
         sentences: List[Sentence],
         cache_dir: Path,
         device: Optional[str] = None,
+        enable_query_cache: bool = True,
     ):
         super().__init__(config, sentences, cache_dir)
         self.device = device or "cuda"
         self.embeddings: Optional[np.ndarray] = None
         self.model = None
         self._uid_to_idx: Optional[Dict[str, int]] = None
+        self._enable_query_cache = enable_query_cache
+        # Cache corpus fingerprint to avoid recomputation
+        self._cached_fingerprint: Optional[str] = None
+
+    def _corpus_fingerprint(self) -> str:
+        """Compute fingerprint of corpus for cache validation (cached)."""
+        if self._cached_fingerprint is not None:
+            return self._cached_fingerprint
+        # Call parent implementation and cache
+        self._cached_fingerprint = super()._corpus_fingerprint()
+        return self._cached_fingerprint
+
+    def _get_query_embedding(self, query_text: str) -> np.ndarray:
+        """Get query embedding with caching support.
+
+        Args:
+            query_text: The query text to encode
+
+        Returns:
+            Query embedding as numpy array
+        """
+        global _QUERY_EMBEDDING_CACHE
+
+        if self._enable_query_cache:
+            # Create cache key from query text hash
+            cache_key = hashlib.md5(query_text.encode()).hexdigest()
+
+            if cache_key in _QUERY_EMBEDDING_CACHE:
+                logger.debug(f"Query cache hit for: {query_text[:50]}...")
+                return _QUERY_EMBEDDING_CACHE[cache_key]
+
+        # Encode query
+        query_emb = self.model.encode(
+            [query_text],
+            convert_to_numpy=True,
+            normalize_embeddings=True,
+        )[0]
+
+        if self._enable_query_cache:
+            # Add to cache, evict oldest if over limit
+            if len(_QUERY_EMBEDDING_CACHE) >= _QUERY_CACHE_MAX_SIZE:
+                # Remove first (oldest) item
+                oldest_key = next(iter(_QUERY_EMBEDDING_CACHE))
+                del _QUERY_EMBEDDING_CACHE[oldest_key]
+            _QUERY_EMBEDDING_CACHE[cache_key] = query_emb
+
+        return query_emb
 
     def _load_query_encoder(self):
         """Load a compatible model for query encoding."""
@@ -206,12 +263,8 @@ class NVEmbedRetriever(BaseRetriever):
 
         query_text = self.config.query_prefix + query if self.config.query_prefix else query
 
-        # Use sentence-transformers encode
-        query_emb = self.model.encode(
-            [query_text],
-            convert_to_numpy=True,
-            normalize_embeddings=True,
-        )[0]
+        # Use cached query embedding
+        query_emb = self._get_query_embedding(query_text)
 
         # Get within-post candidates
         candidate_embs = self.embeddings[indices]

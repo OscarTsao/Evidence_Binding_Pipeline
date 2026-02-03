@@ -86,6 +86,22 @@ AUPRC = integral(Precision(Recall))
 
 **Critical invariant:** Post-ID disjoint (no post appears in multiple splits)
 
+## Criteria
+
+| Criterion | Description | Type | Training |
+|-----------|-------------|------|----------|
+| A.1-A.9 | DSM-5 MDD Criteria | Standard | Included |
+| A.10 | SPECIAL_CASE (expert discrimination) | Non-DSM-5 | **Excluded by default** |
+
+### A.10 Exclusion
+
+A.10 is excluded from GNN training by default because:
+- Not a standard DSM-5 criterion
+- Low positive rate (5.8%) and poor AUROC (0.665)
+- Ablation study showed +0.28% nDCG@10 improvement on A.1-A.9 when excluded
+
+**Total queries:** 14,770 (all criteria) or 13,293 (DSM-5 only)
+
 ## Statistical Confidence
 
 ### Bootstrap Confidence Intervals
@@ -98,12 +114,39 @@ result = bootstrap((y_true, y_score), metric_func, n_resamples=10000)
 ci = result.confidence_interval
 ```
 
-### Reported CIs
+### Reported Results (5-Fold Cross-Validation)
 
-| Metric | Value | 95% CI |
-|--------|-------|--------|
-| AUROC | 0.8972 | [0.8941, 0.9003] |
-| Evidence Recall@K | 0.7043 | [0.6921, 0.7165] |
+| Model | nDCG@10 | MRR | Recall@10 |
+|-------|---------|-----|-----------|
+| Baseline (Jina-v3) | 0.7428 ± 0.033 | 0.6862 ± 0.042 | 0.9485 ± 0.021 |
+| + SAGE+Residual GNN | 0.8206 ± 0.030 | 0.7703 ± 0.035 | - |
+| **Improvement** | +10.48% | +12.25% | - |
+
+Source: `outputs/comprehensive_ablation/`
+
+Standard deviations are across 5 folds (post-ID disjoint).
+
+### Extended Metrics (K = 1, 3, 5, 10, 20)
+
+| Metric | Baseline | GNN (HPO) | Improvement |
+|--------|----------|-----------|-------------|
+| nDCG@1 | 0.5540 ± 0.063 | 0.6497 ± 0.052 | +17.27% |
+| nDCG@3 | 0.6660 ± 0.042 | 0.7532 ± 0.039 | +13.09% |
+| nDCG@5 | 0.7086 ± 0.037 | 0.7832 ± 0.038 | +10.53% |
+| nDCG@10 | 0.7428 ± 0.033 | 0.8081 ± 0.033 | +8.79% |
+| nDCG@20 | 0.7566 ± 0.032 | 0.8223 ± 0.026 | +8.68% |
+| Precision@1 | 0.5540 ± 0.063 | 0.6605 ± 0.047 | +19.22% |
+| Precision@3 | 0.2709 ± 0.008 | 0.3018 ± 0.008 | +11.41% |
+| Precision@5 | 0.1859 ± 0.003 | 0.2002 ± 0.005 | +7.69% |
+| Precision@10 | 0.1048 ± 0.002 | 0.1079 ± 0.001 | +2.96% |
+| Hit@1 | 0.5540 ± 0.063 | 0.6605 ± 0.047 | +19.22% |
+| Hit@3 | 0.7691 ± 0.030 | 0.8483 ± 0.027 | +10.30% |
+| Hit@5 | 0.8631 ± 0.020 | 0.9187 ± 0.031 | +6.44% |
+| Hit@10 | 0.9534 ± 0.017 | 0.9762 ± 0.012 | +2.39% |
+| MAP@1 | 0.5540 ± 0.063 | 0.6605 ± 0.047 | +19.22% |
+| MAP@3 | 0.6322 ± 0.047 | 0.7308 ± 0.037 | +15.60% |
+| MAP@5 | 0.6574 ± 0.044 | 0.7508 ± 0.038 | +14.21% |
+| MAP@10 | 0.6732 ± 0.042 | 0.7612 ± 0.035 | +13.07% |
 
 ## Implementation
 
@@ -132,7 +175,7 @@ pytest tests/metrics/test_ranking_metrics.py -v
 
 All reported metrics come from:
 ```
-results/paper_bundle/v2.0/metrics_master.json
+results/paper_bundle/v3.0/metrics_master.json
 ```
 
 Any discrepancy should be reported as a bug.

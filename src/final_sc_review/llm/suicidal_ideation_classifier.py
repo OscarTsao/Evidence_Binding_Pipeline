@@ -133,26 +133,8 @@ Your JSON response:"""
             "n_runs": len(parsed_responses),
         }
 
-    def _extract_json(self, response: str) -> Dict:
-        """Extract JSON object from LLM response."""
-        response = response.strip()
-
-        # Remove markdown code blocks if present
-        if "```json" in response:
-            start = response.index("```json") + 7
-            end = response.index("```", start)
-            response = response[start:end].strip()
-        elif "```" in response:
-            start = response.index("```") + 3
-            end = response.index("```", start)
-            response = response[start:end].strip()
-
-        # Find first { and last }
-        start = response.index("{")
-        end = response.rindex("}") + 1
-        json_str = response[start:end]
-
-        return json.loads(json_str)
+    # Note: _extract_json is now inherited from LLMBase which uses
+    # the shared extract_json_from_response utility
 
 
 # Backward compatibility alias (deprecated)

@@ -57,6 +57,41 @@ python scripts/verification/metric_crosscheck.py \
 
 ## Notes
 
-- AUROC/AUPRC: 95% bootstrap CIs (n=2000, seed=42)
-- Ranking metrics: positives_only protocol
-- Split: TEST (10% posts, post-ID disjoint)
+- Evaluation: 5-fold cross-validation, positives_only protocol
+- Criteria: A.1-A.9 (A.10 excluded)
+
+## 5-Fold Cross-Validation Results
+
+| Model | nDCG@10 | MRR | Recall@10 |
+|-------|---------|-----|-----------|
+| Baseline (NV-Embed-v2 + Jina-v3) | 0.7428 ± 0.033 | 0.6862 ± 0.042 | 0.9485 ± 0.021 |
+| + P3 GNN (SAGE+Residual) | 0.8206 ± 0.030 | 0.7703 ± 0.035 | - |
+| **Improvement** | **+10.48%** | **+12.25%** | - |
+
+Source: `outputs/comprehensive_ablation/`
+
+## Criteria
+
+| Criterion | Description | Type | In Training |
+|-----------|-------------|------|-------------|
+| A.1-A.9 | DSM-5 MDD Criteria | Standard | Yes |
+| A.10 | SPECIAL_CASE (expert discrimination) | Non-DSM-5 | **No (excluded)** |
+
+### A.10 Exclusion
+
+A.10 is excluded from training because:
+- Not a standard DSM-5 criterion
+- Low positive rate (5.8%) and poor AUROC (0.67)
+- Focuses training on the 9 standard criteria
+
+## Pipeline Configuration
+
+| Parameter | Value |
+|-----------|-------|
+| Retriever | NV-Embed-v2 |
+| Reranker | Jina-Reranker-v3 |
+| top_k_retriever | 24 |
+| top_k_rerank | 20 |
+| top_k_final | 10 |
+| fusion_method | rrf |
+| rrf_k | 60 |

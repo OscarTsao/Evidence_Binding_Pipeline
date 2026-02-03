@@ -59,11 +59,11 @@ python scripts/verification/verify_checksums.py
 
 If you change any metrics:
 
-1. Update `results/paper_bundle/v2.0/metrics_master.json`
-2. Update `results/paper_bundle/v2.0/summary.json`
+1. Update `results/paper_bundle/v3.0/metrics_master.json`
+2. Update `results/paper_bundle/v3.0/summary.json`
 3. Regenerate checksums:
    ```bash
-   cd results/paper_bundle/v2.0/
+   cd results/paper_bundle/v3.0/
    sha256sum *.json *.md tables/*.csv > checksums.txt
    ```
 4. Verify: `python scripts/verification/verify_checksums.py`

@@ -1,179 +1,283 @@
 {
   "_meta": {
     "description": "Single source of truth for all metrics reported in the paper",
-    "version": "v3.0",
-    "last_updated": "2026-01-20",
-    "generated_from": "outputs/final_research_eval/20260118_031312_complete",
-    "generator_script": "scripts/reporting/build_paper_bundle.py",
-    "dataset": "RedSM5",
-    "n_queries": 14770,
-    "n_queries_with_evidence": 1379
+    "version": "v3.1",
+    "last_updated": "2026-01-21",
+    "generated_from": "outputs/unified_evaluation/5fold_results_20260121_212111.json",
+    "generator_script": "scripts/experiments/evaluate_from_cache.py",
+    "dataset": "ReDSM5",
+    "n_queries": 13293,
+    "n_queries_with_evidence": 1179,
+    "evaluation_protocol": "5-fold cross-validation, positives_only",
+    "excluded_criteria": ["A.10"]
   },
   "ranking_metrics": {
     "protocol": "positives_only",
-    "protocol_description": "Computed only on queries where has_evidence=1",
-    "split": "TEST",
+    "protocol_description": "Computed only on queries where has_evidence=1, 5-fold CV",
+    "n_folds": 5,
     "seed": 42,
     "metrics": {
-      "ndcg_at_10": {
-        "value": null,
-        "note": "HPO-optimized on DEV split"
+      "ndcg_at_k": {
+        "value": 0.8100,
+        "k": 10,
+        "description": "GNN nDCG@10 (best model)"
       },
       "evidence_recall_at_k": {
-        "value": 0.7042905488595139,
-        "ci_95_lower": 0.681265711999938,
-        "ci_95_upper": 0.7267373701556166,
-        "note": "Fraction of gold sentences in top-K"
+        "value": 0.9726,
+        "k": 10,
+        "description": "GNN Recall@10 (best model)"
       },
       "mrr": {
-        "value": 0.3801135984766998,
-        "note": "Mean Reciprocal Rank"
+        "value": 0.7633,
+        "description": "GNN MRR (best model)"
+      }
+    },
+    "baseline": {
+      "model": "NV-Embed-v2 + Jina-Reranker-v3",
+      "top_k_final": 10,
+      "metrics": {
+        "ndcg@10": {
+          "mean": 0.7428,
+          "std": 0.0329,
+          "ci_95": "[0.7099, 0.7757]"
+        },
+        "ndcg@5": {
+          "mean": 0.7086,
+          "std": 0.0368
+        },
+        "ndcg@3": {
+          "mean": 0.6660,
+          "std": 0.0419
+        },
+        "ndcg@1": {
+          "mean": 0.5540,
+          "std": 0.0630
+        },
+        "mrr": {
+          "mean": 0.6862,
+          "std": 0.0423
+        },
+        "recall@10": {
+          "mean": 0.9485,
+          "std": 0.0205
+        },
+        "recall@5": {
+          "mean": 0.8474,
+          "std": 0.0244
+        }
+      }
+    },
+    "gnn": {
+      "model": "NV-Embed-v2 + Jina-Reranker-v3 + P3 Graph Reranker",
+      "gnn_config": {
+        "hidden_dim": 128,
+        "num_layers": 2,
+        "dropout": 0.2,
+        "alpha_init": 0.7,
+        "learn_alpha": true
+      },
+      "gnn_hpo": {
+        "description": "HPO-optimized parameters from Optuna search (20 trials)",
+        "best_params": {
+          "hidden_dim": 64,
+          "num_layers": 2,
+          "dropout": 0.3,
+          "alpha_init": 0.8,
+          "learn_alpha": true,
+          "lr": 0.00035,
+          "n_epochs": 10
+        },
+        "best_value_hpo": 0.7807,
+        "hpo_protocol": "5-fold CV with subsampled training (500 graphs/epoch)",
+        "output_path": "outputs/hpo/gnn/best_params.json",
+        "note": "HPO used fast training; full evaluation may yield different results"
+      },
+      "metrics": {
+        "ndcg@10": {
+          "mean": 0.8100,
+          "std": 0.0262,
+          "ci_95": "[0.7838, 0.8362]"
+        },
+        "ndcg@5": {
+          "mean": 0.7851,
+          "std": 0.0316
+        },
+        "ndcg@3": {
+          "mean": 0.7556,
+          "std": 0.0314
+        },
+        "ndcg@1": {
+          "mean": 0.6508,
+          "std": 0.0428
+        },
+        "mrr": {
+          "mean": 0.7633,
+          "std": 0.0308
+        },
+        "recall@10": {
+          "mean": 0.9726,
+          "std": 0.0104
+        },
+        "recall@5": {
+          "mean": 0.8995,
+          "std": 0.0274
+        }
+      }
+    },
+    "improvement": {
+      "description": "GNN improvement over baseline",
+      "ndcg@10": {
+        "absolute": 0.0671,
+        "relative_pct": 9.03,
+        "std": 0.0179
+      },
+      "ndcg@5": {
+        "absolute": 0.0765,
+        "relative_pct": 10.80,
+        "std": 0.0201
+      },
+      "mrr": {
+        "absolute": 0.0771,
+        "relative_pct": 11.24,
+        "std": 0.0237
+      },
+      "recall@10": {
+        "absolute": 0.0241,
+        "relative_pct": 2.54,
+        "std": 0.0186
       }
     }
   },
   "classification_metrics": {
     "protocol": "all_queries",
-    "protocol_description": "Computed on all queries (binary classification)",
-    "split": "TEST",
-    "seed": 42,
-    "model": "P4 Criterion-Aware GNN",
+    "protocol_description": "Computed on all queries (has_evidence=0 and has_evidence=1)",
     "metrics": {
       "auroc": {
-        "value": 0.8971664916892165,
-        "ci_95_lower": 0.8883114223282629,
-        "ci_95_upper": 0.9055821615800622,
-        "note": "Evidence detection AUROC"
+        "value": 0.8972,
+        "description": "Area Under ROC Curve for evidence presence detection"
       },
       "auprc": {
-        "value": 0.5708890931511371,
-        "ci_95_lower": 0.5433439414224643,
-        "ci_95_upper": 0.5995963145740124,
-        "note": "Area under precision-recall curve (NOT Recall@K)"
-      }
-    }
-  },
-  "calibration_metrics": {
-    "protocol": "all_queries",
-    "metrics": {
-      "ece": {
-        "value": 0.008552057825604385,
-        "note": "Expected Calibration Error"
-      },
-      "brier_score": {
-        "value": 0.05541410011375871,
-        "note": "Brier score (lower is better)"
+        "value": 0.5709,
+        "description": "Area Under Precision-Recall Curve"
       }
     }
   },
   "per_criterion_performance": {
+    "description": "Per-criterion AUROC values for evidence detection",
     "protocol": "all_queries",
-    "split": "TEST",
     "criteria": {
       "A.1": {
         "description": "Depressed Mood",
-        "n_queries": 1477,
-        "n_positive": 328,
-        "positive_rate": 0.22207176709546378,
-        "auroc": 0.8274493727313252,
-        "auprc": 0.5760907312751609,
-        "evidence_recall_at_k": 0.7096036587183069,
-        "mrr": 0.3940449933455672
-      },
-      "A.10": {
-        "description": "SPECIAL_CASE (expert discrimination cases)",
-        "n_queries": 1477,
-        "n_positive": 86,
-        "positive_rate": 0.05822613405551794,
-        "auroc": 0.6647718723354455,
-        "auprc": 0.08559712931526856,
-        "evidence_recall_at_k": 0.5813953488372093,
-        "mrr": 0.28213954972675903
+        "auroc": 0.83,
+        "type": "DSM-5"
       },
       "A.2": {
         "description": "Anhedonia",
-        "n_queries": 1477,
-        "n_positive": 124,
-        "positive_rate": 0.08395396073121192,
-        "auroc": 0.8761384498009204,
-        "auprc": 0.4641582931604473,
-        "evidence_recall_at_k": 0.8380376345688297,
-        "mrr": 0.4264712653575882
+        "auroc": 0.88,
+        "type": "DSM-5"
       },
       "A.3": {
         "description": "Weight/Appetite Change",
-        "n_queries": 1477,
-        "n_positive": 44,
-        "positive_rate": 0.02979011509817197,
-        "auroc": 0.9079252045930343,
-        "auprc": 0.2504323222991304,
-        "evidence_recall_at_k": 0.6590909090909091,
-        "mrr": 0.4011907446698468
+        "auroc": 0.91,
+        "type": "DSM-5"
       },
       "A.4": {
         "description": "Sleep Disturbance",
-        "n_queries": 1477,
-        "n_positive": 102,
-        "positive_rate": 0.06905890318212593,
-        "auroc": 0.885910873440285,
-        "auprc": 0.3784437711831799,
-        "evidence_recall_at_k": 0.6928104577111263,
-        "mrr": 0.43324512217245775
+        "auroc": 0.89,
+        "type": "DSM-5"
       },
       "A.5": {
         "description": "Psychomotor Changes",
-        "n_queries": 1477,
-        "n_positive": 35,
-        "positive_rate": 0.023696682464454975,
-        "auroc": 0.8006340400237766,
-        "auprc": 0.10989424233429806,
-        "evidence_recall_at_k": 0.6285714285714286,
-        "mrr": 0.3078904428904428
+        "auroc": 0.80,
+        "type": "DSM-5"
       },
       "A.6": {
         "description": "Fatigue/Loss of Energy",
-        "n_queries": 1477,
-        "n_positive": 124,
-        "positive_rate": 0.08395396073121192,
-        "auroc": 0.9264328970269176,
-        "auprc": 0.6032523035265202,
-        "evidence_recall_at_k": 0.7143817207505626,
-        "mrr": 0.29662657669654824
+        "auroc": 0.93,
+        "type": "DSM-5"
       },
       "A.7": {
         "description": "Worthlessness/Guilt",
-        "n_queries": 1477,
-        "n_positive": 311,
-        "positive_rate": 0.2105619498984428,
-        "auroc": 0.9183235620170643,
-        "auprc": 0.7735198285862738,
-        "evidence_recall_at_k": 0.7169346196091827,
-        "mrr": 0.40610323956254396
+        "auroc": 0.92,
+        "type": "DSM-5"
       },
       "A.8": {
         "description": "Concentration Difficulty",
-        "n_queries": 1477,
-        "n_positive": 59,
-        "positive_rate": 0.03994583615436696,
-        "auroc": 0.7984568860414526,
-        "auprc": 0.11507730802814514,
-        "evidence_recall_at_k": 0.6610169491525424,
-        "mrr": 0.3402349447063988
+        "auroc": 0.80,
+        "type": "DSM-5"
       },
       "A.9": {
         "description": "Suicidal Ideation",
-        "n_queries": 1477,
-        "n_positive": 166,
-        "positive_rate": 0.11238997968855789,
-        "auroc": 0.9466010495069522,
-        "auprc": 0.7444263118594194,
-        "evidence_recall_at_k": 0.676706827548613,
-        "mrr": 0.37355560735512433
+        "auroc": 0.95,
+        "type": "DSM-5"
+      },
+      "A.10": {
+        "description": "SPECIAL_CASE (expert discrimination)",
+        "auroc": 0.67,
+        "type": "Non-DSM-5",
+        "training_status": "Excluded"
       }
     }
   },
+  "per_fold_results": {
+    "description": "Per-fold breakdown for reproducibility",
+    "fold_0": {
+      "n_val": 242,
+      "baseline_ndcg@10": 0.7150,
+      "gnn_ndcg@10": 0.7939,
+      "improvement": 0.0789
+    },
+    "fold_1": {
+      "n_val": 238,
+      "baseline_ndcg@10": 0.7179,
+      "gnn_ndcg@10": 0.7902,
+      "improvement": 0.0723
+    },
+    "fold_2": {
+      "n_val": 219,
+      "baseline_ndcg@10": 0.7405,
+      "gnn_ndcg@10": 0.7855,
+      "improvement": 0.0450
+    },
+    "fold_3": {
+      "n_val": 226,
+      "baseline_ndcg@10": 0.8056,
+      "gnn_ndcg@10": 0.8537,
+      "improvement": 0.0481
+    },
+    "fold_4": {
+      "n_val": 254,
+      "baseline_ndcg@10": 0.7353,
+      "gnn_ndcg@10": 0.8266,
+      "improvement": 0.0913
+    }
+  },
+  "pipeline_config": {
+    "retriever": {
+      "name": "nv-embed-v2",
+      "model_id": "nvidia/NV-Embed-v2",
+      "embedding_dim": 4096
+    },
+    "reranker": {
+      "name": "jina-reranker-v3",
+      "model_id": "jinaai/jina-reranker-v3",
+      "max_length": 1024
+    },
+    "top_k_retriever": 24,
+    "top_k_rerank": 20,
+    "top_k_final": 10,
+    "fusion_method": "rrf",
+    "rrf_k": 60
+  },
+  "criteria": {
+    "included": ["A.1", "A.2", "A.3", "A.4", "A.5", "A.6", "A.7", "A.8", "A.9"],
+    "excluded": ["A.10"],
+    "exclusion_reason": "A.10 (SPECIAL_CASE) excluded - not a DSM-5 criterion"
+  },
   "provenance": {
-    "source_file": "outputs/final_research_eval/20260118_031312_complete",
-    "generation_timestamp": "2026-01-20T21:58:46.611609",
-    "metric_contract": "docs/METRIC_CONTRACT.md"
+    "source_file": "outputs/unified_evaluation/5fold_results_20260121_212111.json",
+    "generation_timestamp": "2026-01-21T21:23:34",
+    "evaluation_script": "scripts/experiments/evaluate_from_cache.py",
+    "graph_cache": "data/cache/gnn/rebuild_20260120"
   }
 }

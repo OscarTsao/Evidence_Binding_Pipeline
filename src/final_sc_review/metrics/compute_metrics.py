@@ -155,38 +155,43 @@ def compute_ranking_metrics(
             metrics["mrr"] = float(df_pos["mrr"].mean())
         return metrics
 
-    # Compute ranking metrics
+    # Compute ranking metrics using vectorized operations
+    # Pre-extract columns as lists for faster iteration
+    gold_ids_list = df_pos[gold_ids_col].tolist()
+    ranked_ids_list = df_pos[ranked_col].tolist()
+
+    # Filter valid rows (both have data)
+    valid_indices = [
+        i for i, (g, r) in enumerate(zip(gold_ids_list, ranked_ids_list))
+        if g and r
+    ]
+
+    if not valid_indices:
+        return metrics
+
+    # Extract valid data
+    valid_gold = [gold_ids_list[i] for i in valid_indices]
+    valid_ranked = [ranked_ids_list[i] for i in valid_indices]
+
     for k in k_list:
-        recall_vals = []
-        ndcg_vals = []
-        mrr_vals = []
-        map_vals = []
-        precision_vals = []
+        # Vectorized computation using list comprehensions (faster than iterrows)
+        recall_vals = np.array([recall_at_k(g, r, k) for g, r in zip(valid_gold, valid_ranked)])
+        ndcg_vals = np.array([ndcg_at_k(g, r, k) for g, r in zip(valid_gold, valid_ranked)])
 
-        for _, row in df_pos.iterrows():
-            gold_ids = row[gold_ids_col]
-            ranked_ids = row[ranked_col]
+        # Precision@K - vectorized
+        precision_vals = np.array([
+            len(set(r[:k]) & set(g)) / k for g, r in zip(valid_gold, valid_ranked)
+        ])
 
-            if not gold_ids or not ranked_ids:
-                continue
+        metrics[f"recall@{k}"] = float(recall_vals.mean())
+        metrics[f"ndcg@{k}"] = float(ndcg_vals.mean())
+        metrics[f"precision@{k}"] = float(precision_vals.mean())
 
-            recall_vals.append(recall_at_k(gold_ids, ranked_ids, k))
-            ndcg_vals.append(ndcg_at_k(gold_ids, ranked_ids, k))
-            mrr_vals.append(mrr_at_k(gold_ids, ranked_ids, k))
-            map_vals.append(map_at_k(gold_ids, ranked_ids, k))
-
-            # Precision@K
-            hits = len(set(ranked_ids[:k]) & set(gold_ids))
-            precision_vals.append(hits / k)
-
-        if recall_vals:
-            metrics[f"recall@{k}"] = float(np.mean(recall_vals))
-            metrics[f"ndcg@{k}"] = float(np.mean(ndcg_vals))
-            metrics[f"precision@{k}"] = float(np.mean(precision_vals))
-
-        if k == max(k_list) and mrr_vals:
-            metrics["mrr"] = float(np.mean(mrr_vals))
-            metrics[f"map@{k}"] = float(np.mean(map_vals))
+        if k == max(k_list):
+            mrr_vals = np.array([mrr_at_k(g, r, k) for g, r in zip(valid_gold, valid_ranked)])
+            map_vals = np.array([map_at_k(g, r, k) for g, r in zip(valid_gold, valid_ranked)])
+            metrics["mrr"] = float(mrr_vals.mean())
+            metrics[f"map@{k}"] = float(map_vals.mean())
 
     return metrics
 

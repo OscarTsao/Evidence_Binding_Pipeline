@@ -94,37 +94,78 @@ python scripts/verification/metric_crosscheck.py \
     --expected results/paper_bundle/v3.0/metrics_master.json
 ```
 
-## Expected Results
+## Expected Results (5-Fold Cross-Validation)
 
-| Metric | Expected | Tolerance |
-|--------|----------|-----------|
-| AUROC | 0.8972 | ±0.001 |
-| Evidence Recall@K | 0.7043 | ±0.005 |
-| MRR | 0.3801 | ±0.005 |
-| nDCG@10 | 0.8658 | ±0.005 |
+| Model | nDCG@10 | MRR | Recall@10 |
+|-------|---------|-----|-----------|
+| Baseline (NV-Embed-v2 + Jina-v3) | 0.7428 ± 0.033 | 0.6862 ± 0.042 | 0.9485 ± 0.021 |
+| + SAGE+Residual GNN | 0.8206 ± 0.030 | 0.7703 ± 0.035 | - |
+| **GNN Improvement** | **+10.48%** | **+12.25%** | - |
+
+Source: `outputs/comprehensive_ablation/`
+
+### Quick Verification
+
+```bash
+# Run 5-fold evaluation from cached graphs
+python scripts/experiments/evaluate_from_cache.py \
+    --graph_dir data/cache/gnn/rebuild_20260120 \
+    --output_dir outputs/unified_evaluation
+```
 
 Small variations may occur due to:
+- Random seed differences in GNN training
 - GPU architecture differences
 - Library version differences
-- Floating point precision
+
+## GNN Training (Optional)
+
+### Rebuild Graph Cache
+
+```bash
+conda activate llmhe
+
+# Build graph cache (excludes A.10 by default)
+python scripts/gnn/rebuild_graph_cache.py \
+    --output_dir data/cache/gnn/rebuild_$(date +%Y%m%d)
+
+# To include A.10 (not recommended):
+python scripts/gnn/rebuild_graph_cache.py --include_a10
+```
+
+### Train P3 Graph Reranker
+
+```bash
+# Train P3 GNN (excludes A.10 by default)
+python scripts/gnn/train_p3_graph_reranker.py \
+    --graph_dir data/cache/gnn/rebuild_20260120 \
+    --output_dir outputs/gnn_research/p3_retrained
+
+# To include A.10 (not recommended):
+python scripts/gnn/train_p3_graph_reranker.py --include_a10
+```
+
+### A.10 Exclusion
+
+A.10 (SPECIAL_CASE) is excluded from GNN training by default because:
+- It's not a standard DSM-5 criterion (expert discrimination cases)
+- Low positive rate (5.8%) and poor AUROC (0.67)
+- Removing it focuses training on the 9 standard DSM-5 criteria
+
+**Current 5-fold CV results (A.10 excluded, SAGE+Residual architecture):**
+- Baseline nDCG@10: 0.7428 ± 0.033
+- SAGE+Residual nDCG@10: 0.8206 ± 0.030 (+10.48%)
+
+See `outputs/comprehensive_ablation/` for full results.
 
 ## Ablation Studies
 
-### Retriever Comparison
+### A.10 Training Impact
 
 ```bash
-python scripts/ablation/run_ablation_study.py \
-    --study retriever_comparison \
-    --output outputs/ablation/study_1.json
-```
-
-### Reranker Ablation
-
-```bash
-python scripts/ablation/run_ablation_study.py \
-    --study reranker_ablation \
-    --retriever nv-embed-v2 \
-    --output outputs/ablation/study_2.json
+python scripts/experiments/run_a10_ablation_experiment.py \
+    --graph_dir data/cache/gnn/rebuild_20260120 \
+    --output_dir outputs/a10_ablation_experiment
 ```
 
 ## Multi-Seed Robustness

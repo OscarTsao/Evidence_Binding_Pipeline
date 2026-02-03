@@ -112,16 +112,27 @@ criteria:
       outside the standard 9 DSM-5 MDD symptoms. Lower AUROC expected
       due to heterogeneous nature of special cases.
     is_special_case: true
+    excluded_from_training: true  # Ablation study showed +0.28% nDCG@10 on A.1-A.9 when excluded
+    exclusion_rationale: >
+      A.10 is excluded from GNN training by default because:
+      1. Not a standard DSM-5 criterion
+      2. Low positive rate (5.8%) and poor AUROC (0.665)
+      3. Ablation study showed removing A.10 improves nDCG@10 by +0.28% on A.1-A.9
 
 # Metadata
 metadata:
-  version: "1.1.0"
-  last_updated: "2026-01-20"
+  version: "1.2.0"
+  last_updated: "2026-01-21"
   source: "DSM-5 + ReDSM5"
   disorder: "Major Depressive Disorder"
   total_criteria: 10
   symptom_criteria: 9  # A.1-A.9
   special_case_criteria: 1  # A.10 (per ReDSM5 taxonomy)
+  training_criteria: 9  # A.1-A.9 (A.10 excluded by default)
+  a10_exclusion:
+    enabled: true
+    reason: "Ablation study showed +0.28% nDCG@10 improvement on A.1-A.9 when excluded"
+    ablation_results: "outputs/a10_ablation_experiment/"
 
 # Performance expectations
 expected_performance:

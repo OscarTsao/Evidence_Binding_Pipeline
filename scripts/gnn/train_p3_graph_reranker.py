@@ -3,10 +3,17 @@
 
 Trains on rebuilt graph cache with NV-Embed-v2 embeddings + Jina-v3 reranker scores.
 
+By default, A.10 (SPECIAL_CASE) is excluded from training because:
+- It's not a standard DSM-5 criterion
+- Ablation study showed removing A.10 improves nDCG@10 by +0.28%
+
 Usage:
     conda run -n llmhe python scripts/gnn/train_p3_graph_reranker.py \
         --graph_dir data/cache/gnn/rebuild_20260120 \
         --output_dir outputs/gnn_research/p3_retrained
+
+    # To include A.10 (not recommended):
+    python scripts/gnn/train_p3_graph_reranker.py --include_a10
 """
 
 import argparse
@@ -14,7 +21,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 
 import numpy as np
 import torch
@@ -25,6 +32,8 @@ from torch_geometric.loader import DataLoader
 from tqdm import tqdm
 
 from final_sc_review.gnn.models.p3_graph_reranker import GraphRerankerGNN, GraphRerankerLoss
+from final_sc_review.gnn.config import GNNType, GNNModelConfig
+from final_sc_review.constants import EXCLUDED_CRITERIA
 
 logging.basicConfig(
     level=logging.INFO,
@@ -33,8 +42,25 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def load_graph_dataset(graph_dir: Path) -> Tuple[Dict[int, List], Dict]:
-    """Load graph dataset from cache."""
+def filter_graphs_by_criteria(graphs: List, exclude_criteria: Optional[List[str]] = None) -> List:
+    """Filter graphs by excluding specific criteria."""
+    if not exclude_criteria:
+        return graphs
+
+    filtered = []
+    for g in graphs:
+        criterion = getattr(g, 'criterion_id', None)
+        if criterion is None or criterion not in exclude_criteria:
+            filtered.append(g)
+
+    return filtered
+
+
+def load_graph_dataset(
+    graph_dir: Path,
+    exclude_criteria: Optional[List[str]] = None,
+) -> Tuple[Dict[int, List], Dict]:
+    """Load graph dataset from cache, optionally filtering by criteria."""
     metadata_path = graph_dir / "metadata.json"
     with open(metadata_path) as f:
         metadata = json.load(f)
@@ -45,8 +71,17 @@ def load_graph_dataset(graph_dir: Path) -> Tuple[Dict[int, List], Dict]:
     for fold_id in range(n_folds):
         fold_path = graph_dir / f"fold_{fold_id}.pt"
         data = torch.load(fold_path, weights_only=False)
-        fold_graphs[fold_id] = data["graphs"]
-        logger.info(f"Loaded fold {fold_id}: {len(data['graphs'])} graphs")
+        graphs = data["graphs"]
+
+        # Filter out excluded criteria
+        if exclude_criteria:
+            original_count = len(graphs)
+            graphs = filter_graphs_by_criteria(graphs, exclude_criteria)
+            logger.info(f"Loaded fold {fold_id}: {original_count} -> {len(graphs)} graphs (excluded {exclude_criteria})")
+        else:
+            logger.info(f"Loaded fold {fold_id}: {len(graphs)} graphs")
+
+        fold_graphs[fold_id] = graphs
 
     return fold_graphs, metadata
 
@@ -257,7 +292,17 @@ def run_cv_training(
             if fid != fold_id:
                 train_graphs.extend(graphs)
 
-        # Initialize model
+        # Initialize model with GNN config
+        gnn_config = GNNModelConfig(
+            gnn_type=GNNType(config["gnn_type"]),
+            hidden_dim=config["hidden_dim"],
+            num_layers=config["num_layers"],
+            dropout=config["dropout"],
+            num_heads=config["num_heads"],
+            concat_heads=True,
+            layer_norm=False,  # LayerNorm hurts performance
+            residual=True,
+        )
         model = GraphRerankerGNN(
             input_dim=input_dim,
             hidden_dim=config["hidden_dim"],
@@ -265,6 +310,7 @@ def run_cv_training(
             dropout=config["dropout"],
             alpha_init=config["alpha_init"],
             learn_alpha=config["learn_alpha"],
+            config=gnn_config,
         )
 
         # Train
@@ -331,6 +377,30 @@ def main():
     parser.add_argument("--output_dir", type=str, default=None)
     parser.add_argument("--device", type=str, default="cuda")
 
+    # Criteria filtering (A.10 excluded by default based on ablation study)
+    parser.add_argument(
+        "--include_a10",
+        action="store_true",
+        help="Include A.10 in training (not recommended based on ablation study)",
+    )
+    parser.add_argument(
+        "--exclude_criteria",
+        type=str,
+        nargs="+",
+        default=EXCLUDED_CRITERIA,
+        help="Criteria to exclude from training (default: A.10)",
+    )
+
+    # GNN architecture
+    parser.add_argument(
+        "--gnn_type",
+        type=str,
+        default="sage",
+        choices=["gcn", "sage", "gat", "gatv2"],
+        help="GNN layer type (gatv2 recommended based on experiments)",
+    )
+    parser.add_argument("--num_heads", type=int, default=2, help="Number of attention heads (for gat/gatv2)")
+
     # Training hyperparameters (from original P3 training)
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--max_epochs", type=int, default=30)
@@ -348,6 +418,11 @@ def main():
 
     args = parser.parse_args()
 
+    # Handle --include_a10 flag
+    if args.include_a10:
+        args.exclude_criteria = None
+        logger.info("Including A.10 in training (--include_a10 flag set)")
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     if args.output_dir:
         output_dir = Path(args.output_dir)
@@ -358,6 +433,8 @@ def main():
     logger.info(f"Output: {output_dir}")
 
     config = {
+        "gnn_type": args.gnn_type,
+        "num_heads": args.num_heads,
         "batch_size": args.batch_size,
         "max_epochs": args.max_epochs,
         "patience": args.patience,
@@ -374,9 +451,9 @@ def main():
         "margin": args.margin,
     }
 
-    # Load data
+    # Load data (excluding A.10 by default)
     graph_dir = Path(args.graph_dir)
-    fold_graphs, metadata = load_graph_dataset(graph_dir)
+    fold_graphs, metadata = load_graph_dataset(graph_dir, exclude_criteria=args.exclude_criteria)
 
     # Train
     results = run_cv_training(fold_graphs, config, output_dir, args.device)

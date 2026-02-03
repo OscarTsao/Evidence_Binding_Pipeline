@@ -4,17 +4,16 @@
 
 Sentence-criterion evidence retrieval for mental health assessment using DSM-5 Major Depressive Disorder criteria.
 
-## Performance Summary
+## Performance Summary (5-Fold Cross-Validation)
 
-| Metric | Value | Protocol | Split |
-|--------|-------|----------|-------|
-| **AUROC** | 0.8972 | all_queries | TEST |
-| **Evidence Recall@K** | 0.7043 | positives_only | TEST |
-| **MRR** | 0.3801 | positives_only | TEST |
-| **nDCG@10** | 0.8658 | positives_only | TEST |
+| Model | nDCG@10 | MRR | Recall@10 |
+|-------|---------|-----|-----------|
+| **Baseline (NV-Embed-v2 + Jina-v3)** | 0.7428 ± 0.033 | 0.6862 ± 0.042 | 0.9485 ± 0.021 |
+| **+ P3 GNN (SAGE+Residual)** | 0.8206 ± 0.030 | 0.7703 ± 0.035 | - |
+| **Improvement** | **+10.48%** | **+12.25%** | - |
 
-**Dataset:** 14,770 queries across 1,641 posts
-**Validation:** Gold-standard evaluation with post-ID disjoint splits
+**Dataset:** 13,293 queries across 1,477 posts (DSM-5 criteria A.1-A.9, A.10 excluded)
+**Evaluation:** 5-fold cross-validation, positives_only protocol
 **Reproducibility:** Complete artifact bundle with SHA256 checksums
 
 ## Quick Start
@@ -89,11 +88,20 @@ Evidence Sentences (ranked by relevance)
 - Within-post retrieval only (clinical constraint)
 - Dual-protocol metrics (positives_only + all_queries)
 - HPO-optimized over 324 model combinations
+- A.10 excluded from training (improves A.1-A.9 performance)
 
-**GNN Enhancements (P3 Graph Reranker):**
-- MRR: +10.9% (0.6746 → 0.7485)
-- nDCG@10: +8.6% (0.7330 → 0.7959)
-- Recall@5: +5.5% (0.8439 → 0.8903)
+**Best HPO Parameters (Jina-Reranker-v3):**
+| Parameter | Value |
+|-----------|-------|
+| top_k_retriever | 24 |
+| top_k_final | 10 |
+| fusion_method | rrf |
+| rrf_k | 60 |
+| reranker_max_length | 1024 |
+
+**GNN Enhancements (P3 Graph Reranker SAGE+Residual, 5-Fold CV):**
+- nDCG@10: +10.48% (0.7428 → 0.8206)
+- MRR: +12.25% (0.6862 → 0.7703)
 
 ## Documentation
 
@@ -108,7 +116,7 @@ Evidence Sentences (ranked by relevance)
 
 ## Research Artifacts
 
-All results verified and checksummed in `results/paper_bundle/v2.0/`:
+All results verified and checksummed in `results/paper_bundle/v3.0/`:
 
 | File | Purpose |
 |------|---------|
@@ -119,17 +127,20 @@ All results verified and checksummed in `results/paper_bundle/v2.0/`:
 
 ## Per-Criterion Performance
 
-| Criterion | Description | AUROC |
-|-----------|-------------|-------|
-| A.1 | Depressed Mood | 0.83 |
-| A.2 | Anhedonia | 0.88 |
-| A.3 | Weight/Appetite Change | 0.91 |
-| A.4 | Sleep Disturbance | 0.89 |
-| A.5 | Psychomotor Changes | 0.80 |
-| A.6 | Fatigue/Loss of Energy | 0.93 |
-| A.7 | Worthlessness/Guilt | 0.92 |
-| A.8 | Concentration Difficulty | 0.80 |
-| A.9 | Suicidal Ideation | 0.95 |
+| Criterion | Description | AUROC | Notes |
+|-----------|-------------|-------|-------|
+| A.1 | Depressed Mood | 0.83 | DSM-5 |
+| A.2 | Anhedonia | 0.88 | DSM-5 |
+| A.3 | Weight/Appetite Change | 0.91 | DSM-5 |
+| A.4 | Sleep Disturbance | 0.89 | DSM-5 |
+| A.5 | Psychomotor Changes | 0.80 | DSM-5 |
+| A.6 | Fatigue/Loss of Energy | 0.93 | DSM-5 |
+| A.7 | Worthlessness/Guilt | 0.92 | DSM-5 |
+| A.8 | Concentration Difficulty | 0.80 | DSM-5 |
+| A.9 | Suicidal Ideation | 0.95 | DSM-5 |
+| A.10 | SPECIAL_CASE | 0.67 | Excluded from training* |
+
+*A.10 (expert discrimination cases) is excluded from GNN training by default because it's not a standard DSM-5 criterion and ablation study showed removing it improves nDCG@10 by +0.28%.
 
 ## Citation
 

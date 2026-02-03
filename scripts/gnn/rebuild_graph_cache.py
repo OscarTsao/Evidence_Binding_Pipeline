@@ -7,8 +7,16 @@ This script:
 3. Constructs PyG graphs for each query
 4. Saves fold-wise graph datasets for GNN training/evaluation
 
+By default, A.10 (SPECIAL_CASE) is excluded from training because:
+- It's not a standard DSM-5 criterion
+- It has low positive rate (5.8%) and poor performance
+- Ablation study showed removing A.10 improves nDCG@10 by +0.28%
+
 Usage:
     python scripts/gnn/rebuild_graph_cache.py --output_dir data/cache/gnn/rebuild
+
+    # To include A.10 (not recommended):
+    python scripts/gnn/rebuild_graph_cache.py --include_a10
 """
 
 import argparse
@@ -22,6 +30,8 @@ import numpy as np
 import pandas as pd
 import torch
 from tqdm import tqdm
+
+from final_sc_review.constants import EXCLUDED_CRITERIA
 
 # Setup logging
 logging.basicConfig(
@@ -309,15 +319,50 @@ def build_graphs(
             if uid in uid_to_idx:
                 node_embeddings[i] = embeddings[uid_to_idx[uid]]
 
-        # Build node features: [embedding, score, rank_percentile]
+        # Build node features: [embedding, score, rank_percentile, gaps, stats]
+        # Optimized based on feature engineering ablation (2026-01-30)
         ranks = np.argsort(np.argsort(-reranker_scores))
         rank_percentiles = 1.0 - ranks / n_nodes
 
-        # Concatenate features
+        # Normalize reranker scores
+        score_min = reranker_scores.min()
+        score_max = reranker_scores.max()
+        if score_max > score_min:
+            norm_scores = (reranker_scores - score_min) / (score_max - score_min)
+        else:
+            norm_scores = np.ones(n_nodes) * 0.5
+
+        # Score gaps (to neighbors in ranking)
+        sorted_idx = np.argsort(-reranker_scores)
+        sorted_scores = reranker_scores[sorted_idx]
+        gaps_prev = np.zeros(n_nodes)
+        gaps_next = np.zeros(n_nodes)
+        for i, idx in enumerate(sorted_idx):
+            if i > 0:
+                gaps_prev[idx] = sorted_scores[i - 1] - sorted_scores[i]
+            if i < n_nodes - 1:
+                gaps_next[idx] = sorted_scores[i] - sorted_scores[i + 1]
+
+        # Score statistics
+        mean_score = reranker_scores.mean()
+        std_score = reranker_scores.std() if n_nodes > 1 else 1.0
+        median_score = np.median(reranker_scores)
+        zscore = (reranker_scores - mean_score) / (std_score + 1e-8)
+        minmax = norm_scores  # Already computed
+        above_mean = (reranker_scores > mean_score).astype(np.float32)
+        below_median = (reranker_scores < median_score).astype(np.float32)
+
+        # Concatenate all features
         node_features = np.concatenate([
             node_embeddings,
-            reranker_scores.reshape(-1, 1),
+            norm_scores.reshape(-1, 1),
             rank_percentiles.reshape(-1, 1),
+            gaps_prev.reshape(-1, 1),
+            gaps_next.reshape(-1, 1),
+            zscore.reshape(-1, 1),
+            minmax.reshape(-1, 1),
+            above_mean.reshape(-1, 1),
+            below_median.reshape(-1, 1),
         ], axis=1)
 
         # Build edges: semantic kNN + adjacency
@@ -330,7 +375,7 @@ def build_graphs(
         edges_src = []
         edges_dst = []
         k = min(5, n_nodes - 1)
-        threshold = 0.5
+        threshold = 0.7  # Optimized from 0.5 based on graph construction ablation (2026-01-30)
 
         for i in range(n_nodes):
             sims = sim_matrix[i].copy()
@@ -485,7 +530,31 @@ def main():
         default=None,
         help="Path to cached pipeline results CSV",
     )
+    parser.add_argument(
+        "--exclude_criteria",
+        type=str,
+        nargs="+",
+        default=EXCLUDED_CRITERIA,  # Default: exclude A.10
+        help="Criteria to exclude (default: A.10). Use --include_a10 to include all.",
+    )
+    parser.add_argument(
+        "--include_criteria",
+        type=str,
+        nargs="+",
+        default=None,
+        help="Only include these criteria (e.g., --include_criteria A.1 A.2)",
+    )
+    parser.add_argument(
+        "--include_a10",
+        action="store_true",
+        help="Include A.10 in training (not recommended based on ablation study)",
+    )
     args = parser.parse_args()
+
+    # Handle --include_a10 flag
+    if args.include_a10:
+        args.exclude_criteria = None
+        logger.info("Including A.10 in training (--include_a10 flag set)")
 
     # Setup output directory
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -504,6 +573,17 @@ def main():
     # Create query dataframe
     query_df = create_query_df(groundtruth_df)
     logger.info(f"Created {len(query_df)} queries")
+
+    # Filter criteria if specified
+    if args.exclude_criteria:
+        original_count = len(query_df)
+        query_df = query_df[~query_df["criterion_id"].isin(args.exclude_criteria)]
+        logger.info(f"Excluded criteria {args.exclude_criteria}: {original_count} -> {len(query_df)} queries")
+
+    if args.include_criteria:
+        original_count = len(query_df)
+        query_df = query_df[query_df["criterion_id"].isin(args.include_criteria)]
+        logger.info(f"Included only criteria {args.include_criteria}: {original_count} -> {len(query_df)} queries")
 
     # Assign folds
     query_df = assign_folds(query_df, n_folds=args.n_folds)

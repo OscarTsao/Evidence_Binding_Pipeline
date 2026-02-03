@@ -15,7 +15,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 try:
-    from torch_geometric.nn import GCNConv, SAGEConv, GATConv, LayerNorm
+    from torch_geometric.nn import GCNConv, SAGEConv, GATConv, GATv2Conv, LayerNorm
     HAS_PYG = True
 except ImportError:
     HAS_PYG = False
@@ -59,6 +59,14 @@ class GNNLayer(nn.Module):
             else:
                 head_dim = out_dim
             self.conv = GATConv(in_dim, head_dim, heads=num_heads, concat=concat_heads, dropout=dropout)
+        elif gnn_type == GNNType.GATv2:
+            # GATv2 - improved attention mechanism
+            if concat_heads:
+                assert out_dim % num_heads == 0, f"out_dim {out_dim} must be divisible by num_heads {num_heads}"
+                head_dim = out_dim // num_heads
+            else:
+                head_dim = out_dim
+            self.conv = GATv2Conv(in_dim, head_dim, heads=num_heads, concat=concat_heads, dropout=dropout)
         else:
             raise ValueError(f"Unknown GNN type: {gnn_type}")
 
@@ -92,7 +100,7 @@ class GNNLayer(nn.Module):
         identity = x
 
         # GNN convolution
-        if self.gnn_type == GNNType.GAT:
+        if self.gnn_type in (GNNType.GAT, GNNType.GATv2):
             x = self.conv(x, edge_index)
         else:
             x = self.conv(x, edge_index)

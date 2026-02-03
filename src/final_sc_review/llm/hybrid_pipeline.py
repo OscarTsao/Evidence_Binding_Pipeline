@@ -7,6 +7,10 @@ This module implements Phase 4: Production Integration
   - UNCERTAIN cases (P ∈ [0.4, 0.6]) → LLM Verifier
   - Optional: Top-10 → LLM Reranker
 
+Features:
+- Hybrid NE detection (GNN confidence + LLM fallback)
+- Dynamic-K selection for verifier (replaces hardcoded top-5)
+
 Note on criterion naming:
 - A.9 = Suicidal Ideation (DSM-5)
 - A.10 = SPECIAL_CASE (expert discrimination cases, per ReDSM5 taxonomy)
@@ -22,6 +26,8 @@ from .base import LLMBase
 from .reranker import LLMReranker
 from .verifier import LLMVerifier
 from .suicidal_ideation_classifier import SuicidalIdeationClassifier
+from .ne_detector import HybridNEDetector, NEDetectionResult
+from ..postprocessing.dynamic_k import DynamicKSelector
 
 logger = logging.getLogger(__name__)
 
@@ -37,8 +43,13 @@ class HybridPipeline:
         enable_llm_reranker: bool = False,
         enable_llm_verifier: bool = True,
         enable_suicidal_ideation_classifier: bool = True,
+        enable_ne_detection: bool = False,
         uncertain_threshold_low: float = 0.4,
         uncertain_threshold_high: float = 0.6,
+        verifier_k_method: str = "fixed",
+        verifier_k_fixed: int = 5,
+        verifier_k_min: int = 3,
+        verifier_k_max: int = 8,
     ):
         """Initialize hybrid pipeline.
 
@@ -49,14 +60,24 @@ class HybridPipeline:
             enable_llm_reranker: Enable LLM reranker (optional)
             enable_llm_verifier: Enable LLM verifier for UNCERTAIN cases
             enable_suicidal_ideation_classifier: Enable A.9 suicidal ideation classifier
+            enable_ne_detection: Enable hybrid NE detection (GNN + LLM fallback)
             uncertain_threshold_low: Lower bound for UNCERTAIN (default: 0.4)
             uncertain_threshold_high: Upper bound for UNCERTAIN (default: 0.6)
+            verifier_k_method: Method for selecting K candidates for verifier
+                - 'fixed': Use fixed top-K (default: 5)
+                - 'dynamic': Use DynamicKSelector based on score distribution
+            verifier_k_fixed: Fixed K value when verifier_k_method='fixed' (default: 5)
+            verifier_k_min: Minimum K when verifier_k_method='dynamic' (default: 3)
+            verifier_k_max: Maximum K when verifier_k_method='dynamic' (default: 8)
         """
         self.enable_llm_reranker = enable_llm_reranker
         self.enable_llm_verifier = enable_llm_verifier
         self.enable_suicidal_ideation_classifier = enable_suicidal_ideation_classifier
+        self.enable_ne_detection = enable_ne_detection
         self.uncertain_threshold_low = uncertain_threshold_low
         self.uncertain_threshold_high = uncertain_threshold_high
+        self.verifier_k_method = verifier_k_method
+        self.verifier_k_fixed = verifier_k_fixed
 
         model_kwargs = {
             "model_name": model_name,
@@ -68,13 +89,26 @@ class HybridPipeline:
         self._llm_reranker = None
         self._llm_verifier = None
         self._suicidal_ideation_classifier = None
+        self._ne_detector = None
         self._model_kwargs = model_kwargs
+
+        # Initialize dynamic-K selector if needed
+        self._dynamic_k_selector = None
+        if verifier_k_method == "dynamic":
+            self._dynamic_k_selector = DynamicKSelector(
+                method="score_gap",
+                min_k=verifier_k_min,
+                max_k=verifier_k_max,
+                score_gap_ratio=0.3,
+            )
 
         logger.info(f"Initialized HybridPipeline:")
         logger.info(f"  LLM model: {model_name}")
         logger.info(f"  LLM reranker: {enable_llm_reranker}")
         logger.info(f"  LLM verifier: {enable_llm_verifier}")
         logger.info(f"  A.9 Suicidal Ideation classifier: {enable_suicidal_ideation_classifier}")
+        logger.info(f"  NE detection: {enable_ne_detection}")
+        logger.info(f"  Verifier K method: {verifier_k_method}")
 
     @property
     def llm_reranker(self) -> LLMReranker:
@@ -107,6 +141,43 @@ class HybridPipeline:
         logger.warning("a10_classifier is deprecated, use suicidal_ideation_classifier instead")
         return self.suicidal_ideation_classifier
 
+    @property
+    def ne_detector(self) -> HybridNEDetector:
+        """Get or create hybrid NE detector."""
+        if self._ne_detector is None:
+            logger.info("Loading Hybrid NE Detector...")
+            self._ne_detector = HybridNEDetector(
+                llm_verifier=self._llm_verifier,  # May be None, will lazy load
+                enable_llm_fallback=self.enable_llm_verifier,
+            )
+        return self._ne_detector
+
+    def _select_verifier_candidates(
+        self, candidates: List[Dict], scores: Optional[List[float]] = None
+    ) -> Tuple[List[Dict], int]:
+        """Select candidates for LLM verifier using configured method.
+
+        Args:
+            candidates: List of candidate sentences
+            scores: Optional scores for dynamic selection
+
+        Returns:
+            Tuple of (selected candidates, selected K)
+        """
+        if self.verifier_k_method == "fixed":
+            k = min(self.verifier_k_fixed, len(candidates))
+            return candidates[:k], k
+
+        # Dynamic K selection based on score distribution
+        if scores is None or self._dynamic_k_selector is None:
+            # Fall back to fixed if no scores available
+            k = min(self.verifier_k_fixed, len(candidates))
+            return candidates[:k], k
+
+        result = self._dynamic_k_selector.select_k(scores)
+        k = min(result.selected_k, len(candidates))
+        return candidates[:k], k
+
     def predict(
         self,
         post_text: str,
@@ -115,6 +186,7 @@ class HybridPipeline:
         p4_prob: float,
         candidates: List[Dict],
         state: str = None,
+        candidate_scores: Optional[List[float]] = None,
     ) -> Dict:
         """Make prediction using hybrid pipeline.
 
@@ -125,6 +197,7 @@ class HybridPipeline:
             p4_prob: P4 GNN probability (calibrated)
             candidates: List of candidate sentences
             state: 3-state gate output (NEG/UNCERTAIN/POS) - if None, inferred from p4_prob
+            candidate_scores: Optional scores for dynamic K selection
 
         Returns:
             Dict with:
@@ -134,6 +207,8 @@ class HybridPipeline:
                 - llm_module: Which LLM module was used (if any)
                 - llm_metadata: Metadata from LLM module
                 - reranked_candidates: Reranked candidates (if reranker used)
+                - ne_detection: NE detection result (if enabled)
+                - verifier_k: Number of candidates used for verifier
         """
         # Infer state if not provided
         if state is None:
@@ -151,7 +226,38 @@ class HybridPipeline:
             "llm_module": None,
             "llm_metadata": {},
             "reranked_candidates": candidates,
+            "ne_detection": None,
+            "verifier_k": None,
         }
+
+        # Check for no-evidence using hybrid NE detector
+        if self.enable_ne_detection and candidates:
+            scores_for_ne = candidate_scores or [
+                c.get("score", c.get("reranker_score", 0.0))
+                for c in candidates
+            ]
+            ne_result = self.ne_detector.detect(
+                gnn_scores=scores_for_ne,
+                post_text=post_text,
+                criterion_text=criterion_text,
+                candidates=candidates,
+            )
+            result["ne_detection"] = {
+                "is_no_evidence": ne_result.is_no_evidence,
+                "confidence": ne_result.confidence,
+                "method": ne_result.method,
+                "gnn_max_score": ne_result.gnn_max_score,
+            }
+
+            # If high-confidence no-evidence, short-circuit
+            if ne_result.is_no_evidence and ne_result.confidence > 0.8:
+                result["final_prob"] = 0.1
+                result["final_state"] = "NEG"
+                if ne_result.method == "llm_verified":
+                    result["used_llm"] = True
+                    result["llm_module"] = "ne_detector"
+                    result["llm_metadata"] = ne_result.llm_verification or {}
+                return result
 
         # Check if A.9 (Suicidal Ideation) - requires special handling
         # Note: A.10 is SPECIAL_CASE (expert discrimination), NOT suicidal ideation
@@ -181,8 +287,12 @@ class HybridPipeline:
             # Use LLM verifier for UNCERTAIN cases
             logger.debug(f"Routing to LLM Verifier (prob={p4_prob:.3f}, state={state})")
 
-            # Get top-K evidence sentences
-            evidence_sentences = [c["sentence"] for c in candidates[:5]]
+            # Get top-K evidence sentences using configured method
+            selected_candidates, k = self._select_verifier_candidates(
+                candidates, candidate_scores
+            )
+            evidence_sentences = [c["sentence"] for c in selected_candidates]
+            result["verifier_k"] = k
 
             verification = self.llm_verifier.verify(
                 post_text=post_text,

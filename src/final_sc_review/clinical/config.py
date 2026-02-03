@@ -123,13 +123,13 @@ class ClinicalConfig:
     def save(self, path: Path):
         """Save configuration to YAML file."""
         path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, 'w') as f:
+        with open(path, 'w', encoding='utf-8') as f:
             yaml.dump(self.to_dict(), f, default_flow_style=False, sort_keys=False)
 
     @classmethod
     def load(cls, path: Path) -> 'ClinicalConfig':
         """Load configuration from YAML file."""
-        with open(path) as f:
+        with open(path, encoding='utf-8') as f:
             data = yaml.safe_load(f)
 
         # Reconstruct nested dataclasses

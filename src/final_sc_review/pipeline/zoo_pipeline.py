@@ -11,11 +11,9 @@ Two-Environment Architecture:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-
-import numpy as np
 
 from final_sc_review.data.io import Sentence
 from final_sc_review.retriever.zoo import RetrieverZoo, BaseRetriever
@@ -179,23 +177,53 @@ class ZooPipeline:
         ]
 
 
+class ConfigValidationError(ValueError):
+    """Raised when config validation fails."""
+    pass
+
+
+# Valid model names for validation
+VALID_RETRIEVERS = ["nv-embed-v2"]
+VALID_RERANKERS = ["jina-reranker-v3"]
+
+
 def load_zoo_pipeline_from_config(config_path: Path) -> ZooPipeline:
-    """Load zoo pipeline from YAML config file.
+    """Load zoo pipeline from YAML config file with validation.
 
     Args:
         config_path: Path to YAML config file
 
     Returns:
         Configured ZooPipeline instance
+
+    Raises:
+        FileNotFoundError: If config file doesn't exist
+        ConfigValidationError: If config values are invalid
     """
     import yaml
     from final_sc_review.data.io import load_sentence_corpus
 
+    # Validate file exists
+    if not config_path.exists():
+        raise FileNotFoundError(f"Config file not found: {config_path}")
+
     with open(config_path, "r", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
 
-    sentences = load_sentence_corpus(Path(cfg["paths"]["sentence_corpus"]))
-    cache_dir = Path(cfg["paths"]["cache_dir"])
+    # Validate config structure
+    if not cfg or not isinstance(cfg, dict):
+        raise ConfigValidationError(
+            f"Invalid YAML config: {config_path} (empty or not a dictionary)"
+        )
+
+    # Validate required paths
+    if "paths" not in cfg:
+        raise ConfigValidationError("Config missing required 'paths' section")
+
+    paths_cfg = cfg["paths"]
+    for key in ["sentence_corpus", "cache_dir"]:
+        if key not in paths_cfg:
+            raise ConfigValidationError(f"Config paths missing required key: {key}")
 
     # Extract model names from config
     models_cfg = cfg.get("models", {})
@@ -205,11 +233,54 @@ def load_zoo_pipeline_from_config(config_path: Path) -> ZooPipeline:
     retriever_name = models_cfg.get("retriever_name", "nv-embed-v2")
     reranker_name = models_cfg.get("reranker_name", "jina-reranker-v3")
 
+    # Validate model names BEFORE loading corpus (fail-fast)
+    if retriever_name not in VALID_RETRIEVERS:
+        raise ConfigValidationError(
+            f"Unknown retriever: {retriever_name}. "
+            f"Valid options: {VALID_RETRIEVERS}"
+        )
+
+    if reranker_name not in VALID_RERANKERS:
+        raise ConfigValidationError(
+            f"Unknown reranker: {reranker_name}. "
+            f"Valid options: {VALID_RERANKERS}"
+        )
+
+    # Extract and validate numeric parameters BEFORE loading corpus
+    top_k_retriever = retriever_cfg.get("top_k_retriever", 24)
+    top_k_final = retriever_cfg.get("top_k_final", 10)
+    rrf_k = retriever_cfg.get("rrf_k", 60)
+
+    if not isinstance(top_k_retriever, int) or top_k_retriever <= 0:
+        raise ConfigValidationError(
+            f"top_k_retriever must be positive integer, got {top_k_retriever}"
+        )
+
+    if not isinstance(top_k_final, int) or top_k_final <= 0:
+        raise ConfigValidationError(
+            f"top_k_final must be positive integer, got {top_k_final}"
+        )
+
+    if top_k_final > top_k_retriever:
+        raise ConfigValidationError(
+            f"top_k_final ({top_k_final}) cannot exceed "
+            f"top_k_retriever ({top_k_retriever})"
+        )
+
+    if not isinstance(rrf_k, (int, float)) or rrf_k <= 0:
+        raise ConfigValidationError(
+            f"rrf_k must be positive number, got {rrf_k}"
+        )
+
+    # Load corpus after validation passes (expensive operation)
+    sentences = load_sentence_corpus(Path(paths_cfg["sentence_corpus"]))
+    cache_dir = Path(paths_cfg["cache_dir"])
+
     pipeline_config = ZooPipelineConfig(
         retriever_name=retriever_name,
         reranker_name=reranker_name,
-        top_k_retriever=retriever_cfg.get("top_k_retriever", 24),
-        top_k_final=retriever_cfg.get("top_k_final", 10),
+        top_k_retriever=top_k_retriever,
+        top_k_final=top_k_final,
         use_sparse=retriever_cfg.get("use_sparse", False),
         use_colbert=retriever_cfg.get("use_colbert", False),
         dense_weight=retriever_cfg.get("dense_weight", 1.0),
@@ -217,7 +288,7 @@ def load_zoo_pipeline_from_config(config_path: Path) -> ZooPipeline:
         colbert_weight=retriever_cfg.get("colbert_weight", 0.0),
         fusion_method=retriever_cfg.get("fusion_method", "rrf"),
         score_normalization=retriever_cfg.get("score_normalization", "none"),
-        rrf_k=retriever_cfg.get("rrf_k", 60),
+        rrf_k=rrf_k,
         device=cfg.get("device"),
     )
 

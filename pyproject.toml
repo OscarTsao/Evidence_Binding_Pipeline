@@ -30,3 +30,4 @@ where = ["src"]
 addopts = "-q"
 testpaths = ["tests"]
 pythonpath = ["src"]
+norecursedirs = ["_archived"]

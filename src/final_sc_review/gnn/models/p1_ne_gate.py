@@ -18,6 +18,7 @@ import torch.nn.functional as F
 from final_sc_review.gnn.config import GNNModelConfig, PoolingType
 from final_sc_review.gnn.models.base import BaseGNNEncoder
 from final_sc_review.gnn.models.pooling import get_pooling
+from final_sc_review.gnn.training.losses import focal_loss
 from final_sc_review.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -176,47 +177,6 @@ class NEGateGNNWithNodeFeatures(NEGateGNN):
         logits = self.classifier(graph_emb)
 
         return logits, node_emb
-
-
-def focal_loss(
-    logits: torch.Tensor,
-    targets: torch.Tensor,
-    alpha: float = 0.25,
-    gamma: float = 2.0,
-    reduction: str = "mean",
-) -> torch.Tensor:
-    """Focal loss for class imbalance.
-
-    FL(p_t) = -alpha_t * (1 - p_t)^gamma * log(p_t)
-
-    Args:
-        logits: Raw model outputs [N, 1] or [N]
-        targets: Binary labels [N]
-        alpha: Weight for positive class
-        gamma: Focusing parameter
-        reduction: 'mean', 'sum', or 'none'
-
-    Returns:
-        Loss value
-    """
-    logits = logits.view(-1)
-    targets = targets.view(-1)
-
-    probs = torch.sigmoid(logits)
-    ce_loss = F.binary_cross_entropy_with_logits(logits, targets, reduction='none')
-
-    p_t = probs * targets + (1 - probs) * (1 - targets)
-    alpha_t = alpha * targets + (1 - alpha) * (1 - targets)
-    focal_weight = alpha_t * (1 - p_t) ** gamma
-
-    loss = focal_weight * ce_loss
-
-    if reduction == "mean":
-        return loss.mean()
-    elif reduction == "sum":
-        return loss.sum()
-    else:
-        return loss
 
 
 class NEGateLoss(nn.Module):

@@ -135,9 +135,75 @@ def optimize_model_for_inference(model: torch.nn.Module) -> torch.nn.Module:
 
 _initialized = False
 
+
 def auto_init():
     """Auto-initialize GPU optimizations on first call."""
     global _initialized
     if not _initialized and torch.cuda.is_available():
         enable_gpu_optimizations()
         _initialized = True
+
+
+def get_device(device: Optional[str] = None) -> str:
+    """Get device string with automatic detection.
+
+    Args:
+        device: Explicit device string (cuda, cpu, etc.)
+                If None, auto-detects: cuda if available, else cpu
+
+    Returns:
+        Device string (e.g., "cuda", "cpu", "cuda:0")
+    """
+    if device is not None:
+        return device
+
+    if torch.cuda.is_available():
+        return "cuda"
+    return "cpu"
+
+
+def get_torch_device(device: Optional[str] = None) -> torch.device:
+    """Get torch.device object with automatic detection.
+
+    Args:
+        device: Explicit device string
+
+    Returns:
+        torch.device object
+    """
+    return torch.device(get_device(device))
+
+
+def move_to_device(tensor_or_model, device: Optional[str] = None):
+    """Move tensor or model to device with auto-detection.
+
+    Args:
+        tensor_or_model: PyTorch tensor or model
+        device: Target device (auto-detected if None)
+
+    Returns:
+        Moved tensor or model
+    """
+    target_device = get_device(device)
+    return tensor_or_model.to(target_device)
+
+
+def get_optimal_config() -> dict:
+    """Get optimal configuration for current hardware.
+
+    Returns:
+        Dict with device, dtype, and other optimal settings
+    """
+    config = {
+        "device": get_device(),
+        "dtype": get_optimal_dtype(),
+        "cuda_available": torch.cuda.is_available(),
+    }
+
+    if torch.cuda.is_available():
+        config["compute_capability"] = torch.cuda.get_device_capability(0)
+        config["gpu_name"] = torch.cuda.get_device_name(0)
+        config["gpu_memory_gb"] = torch.cuda.get_device_properties(0).total_memory / 1024**3
+        config["supports_bf16"] = torch.cuda.is_bf16_supported()
+
+    return config

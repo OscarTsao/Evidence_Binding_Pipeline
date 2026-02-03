@@ -1,10 +1,14 @@
 # DEFAULT CONFIGURATION - BEST MODEL COMBO
-# Updated: 2026-01-17 based on HPO results
-# Best combo: nv-embed-v2 + jina-reranker-v3 (nDCG@10 = 0.8658)
+# Updated: 2026-01-30 based on comprehensive ablation (17+ configs tested)
+# Best combo: nv-embed-v2 + jina-reranker-v3 + SAGE+Residual GNN
+# Performance (5-fold CV):
+#   - Baseline: nDCG@10 = 0.7428 ± 0.033
+#   - With P3 GNN (SAGE+Residual): nDCG@10 = 0.8206 ± 0.030 (+10.48%)
 #
-# Note: This config supports both:
-# - Legacy pipeline (BgeM3Retriever + JinaV3Reranker) via bge_m3/jina_v3 keys
-# - Zoo pipeline (any retriever + reranker from zoo) via retriever_name/reranker_name keys
+# A.10 Exclusion: A.10 (SPECIAL_CASE) is excluded from GNN training by default.
+# See: outputs/comprehensive_ablation/ for full experiment results.
+#
+# Note: This config supports the Zoo pipeline with NV-Embed-v2 + Jina-Reranker-v3
 
 paths:
   data_dir: data
@@ -57,22 +61,63 @@ split:
   val_ratio: 0.1
   test_ratio: 0.1
 
+# Training configuration
+training:
+  # A.10 is excluded by default (not a DSM-5 criterion, hurts A.1-A.9 performance)
+  exclude_criteria: ["A.10"]
+  dsm5_criteria: ["A.1", "A.2", "A.3", "A.4", "A.5", "A.6", "A.7", "A.8", "A.9"]
+
 evaluation:
   split: test
   ks: [1, 3, 5, 10, 20]
   skip_no_positives: true
   save_query_csv: true
 
+# GNN Configuration (P3 Graph Reranker)
+# SAGE + Residual - verified best from comprehensive ablation
+gnn:
+  # Architecture options: gcn, sage, gat, gatv2
+  architecture: sage  # Use enum value matching GNNType
+  hidden_dim: 128
+  num_heads: 2
+  num_layers: 2  # 2 layers + residual = best
+  dropout: 0.05
+  activation: gelu  # GELU > ReLU: 0.8237 vs 0.8185 (+0.52%)
+  alpha_init: 0.65
+  learn_alpha: true
+  use_residual: true
+  use_layer_norm: false  # LayerNorm hurts performance (-2.38%)
+  # Training
+  lr: 3.69e-05
+  weight_decay: 9.06e-06
+  max_epochs: 25
+  batch_size: 32
+  patience: 10
+  margin: 0.1  # For PairwiseMarginLoss
+
 # Metadata
 metadata:
-  updated: "2026-01-17"
-  hpo_combo: "nv-embed-v2 + jina-reranker-v3"
-  hpo_ndcg10: 0.8658
-  hpo_n_trials: 50
-  hpo_total_combos: 324
+  updated: "2026-01-30"
+  hpo_combo: "nv-embed-v2 + jina-reranker-v3 + SAGE+Residual"
+  baseline_ndcg10: 0.7428
+  gnn_ndcg10: 0.8206
+  gnn_improvement: "+10.48%"
+  gnn_architecture: "SAGE + Residual"
+  cv_folds: 5
+  a10_exclusion: true
   notes: |
-    Best configuration from HPO model zoo experiments.
-    For full zoo pipeline performance (nDCG@10=0.8658), use:
-      python scripts/eval_zoo_pipeline.py --config configs/default.yaml
-    For legacy BGE-M3 pipeline, use:
-      python scripts/eval_sc_pipeline.py --config configs/default.yaml
+    Best configuration validated with 5-fold cross-validation.
+    SAGE+Residual achieves 0.8206 nDCG@10 (+10.48% over baseline).
+    Source of truth: outputs/comprehensive_ablation/
+
+    Available GNN types: gcn, sage, gat, gatv2
+
+    Conda environments:
+      - nv-embed-v2: For NV-Embed-v2 retriever encoding
+      - llmhe: For all other operations (reranking, GNN, evaluation)
+
+    For full zoo pipeline evaluation:
+      conda run -n llmhe python scripts/eval_zoo_pipeline.py --config configs/default.yaml
+
+    For GNN training (excludes A.10 by default):
+      conda run -n llmhe python scripts/gnn/train_p3_graph_reranker.py --gnn_type sage

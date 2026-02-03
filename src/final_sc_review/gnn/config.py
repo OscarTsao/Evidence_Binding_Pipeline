@@ -16,6 +16,7 @@ class GNNType(str, Enum):
     GCN = "gcn"
     SAGE = "sage"
     GAT = "gat"
+    GATv2 = "gatv2"
 
 
 class PoolingType(str, Enum):

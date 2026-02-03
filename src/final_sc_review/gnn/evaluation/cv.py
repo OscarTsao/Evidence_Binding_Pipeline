@@ -178,7 +178,7 @@ class CrossValidator:
             "n_val": len(val_graphs),
         }
 
-        with open(fold_dir / "results.json", "w") as f:
+        with open(fold_dir / "results.json", "w", encoding="utf-8") as f:
             json.dump(fold_result, f, indent=2)
 
         # Save predictions for analysis
@@ -258,7 +258,7 @@ class CrossValidator:
             logger.info(f"{key}: {mean:.4f} +/- {std:.4f}")
 
         # Save CV results
-        with open(self.output_dir / "cv_results.json", "w") as f:
+        with open(self.output_dir / "cv_results.json", "w", encoding="utf-8") as f:
             json.dump(cv_result, f, indent=2)
 
         return cv_result

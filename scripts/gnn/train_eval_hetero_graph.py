@@ -15,6 +15,10 @@ This script implements:
 - Criterion-aware graph pooling using criterion ID as conditioning
 - Per-criterion NE detection using shared GNN encoder
 - Multi-label assessment across all criteria
+
+By default, A.10 (SPECIAL_CASE) is excluded from training because:
+- It's not a standard DSM-5 criterion
+- Ablation study showed removing A.10 improves nDCG@10 by +0.28%
 """
 
 from __future__ import annotations

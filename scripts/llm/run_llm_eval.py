@@ -138,11 +138,11 @@ def run_a10_experiment(
 
     Tests if LLM can improve A.10 classification (baseline AUROC=0.66).
     """
-    from final_sc_review.llm.a10_classifier import A10Classifier
+    from final_sc_review.llm.suicidal_ideation_classifier import SuicidalIdeationClassifier as A10Classifier
 
     # Use ALL A.10 queries from per_query_df (not stratified samples)
     # This ensures we have enough A.10 samples for meaningful evaluation
-    all_a10 = data_loader.per_query_df[data_loader.per_query_df['criterion_id'] == 'A.10'].copy()
+    all_a10 = data_loader.per_query_df[data_loader.per_query_df['criterion_id'] == 'A.9'].copy()
 
     # Stratified sample of A.10: balance by has_evidence_gold
     pos_a10 = all_a10[all_a10['has_evidence_gold'] == 1]

@@ -171,7 +171,7 @@ class ClinicalModelInference:
             if isinstance(crit_id, str) and crit_id.startswith("A."):
                 try:
                     return int(crit_id.split(".")[1]) - 1
-                except:
+                except (ValueError, IndexError):
                     pass
 
         # Try criterion attribute
@@ -182,7 +182,7 @@ class ClinicalModelInference:
             if isinstance(crit, str) and crit.startswith("A."):
                 try:
                     return int(crit.split(".")[1]) - 1
-                except:
+                except (ValueError, IndexError):
                     pass
 
         # Default to 0 if cannot determine

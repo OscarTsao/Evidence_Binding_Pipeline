@@ -55,3 +55,6 @@ Thumbs.db
 # Notebooks (exploratory)
 notebook/
 *.ipynb_checkpoints/
+
+# Temporary planning documents
+ABLATION_HPO_PLAN.md

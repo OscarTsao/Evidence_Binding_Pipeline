@@ -1,7 +1,13 @@
-"""LLM-based reranker with bias controls."""
+"""LLM-based reranker with bias controls.
+
+WARNING: Evaluation (2026-01-24) showed LLMReranker has high position bias.
+Only 9.8% of samples achieved low position bias with Qwen2.5-7B.
+Recommendation: Use Jina-Reranker-v3 for production instead.
+"""
 
 import json
 import logging
+import warnings
 from typing import Dict, List, Tuple
 
 import numpy as np
@@ -9,6 +15,14 @@ import numpy as np
 from .base import LLMBase
 
 logger = logging.getLogger(__name__)
+
+# Emit deprecation warning on import
+warnings.warn(
+    "LLMReranker shows high position bias in evaluation (2026-01-24). "
+    "Use Jina-Reranker-v3 instead for production.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 
 class LLMReranker(LLMBase):
@@ -112,28 +126,9 @@ Your JSON response:"""
         
         return reranked[:top_k], metadata
     
-    def _extract_json(self, response: str) -> Dict:
-        """Extract JSON object from LLM response."""
-        # Try to find JSON block
-        response = response.strip()
-        
-        # Remove markdown code blocks if present
-        if "```json" in response:
-            start = response.index("```json") + 7
-            end = response.index("```", start)
-            response = response[start:end].strip()
-        elif "```" in response:
-            start = response.index("```") + 3
-            end = response.index("```", start)
-            response = response[start:end].strip()
-        
-        # Find first { and last }
-        start = response.index("{")
-        end = response.rindex("}") + 1
-        json_str = response[start:end]
-        
-        return json.loads(json_str)
-    
+    # Note: _extract_json is now inherited from LLMBase which uses
+    # the shared extract_json_from_response utility
+
     def _check_position_bias(
         self,
         post_text: str,
@@ -170,11 +165,11 @@ Your JSON response:"""
             # Reverse the reverse ranking to compare
             reverse_rank_aligned = [4 - r for r in reverse_rank]
             
-            # Compute disagreement
-            disagreements = sum([
+            # Compute disagreement (use generator for memory efficiency)
+            disagreements = sum(
                 1 for i, j in zip(forward_rank, reverse_rank_aligned)
                 if i != j
-            ])
+            )
             disagreement_rate = disagreements / len(forward_rank)
             
             return disagreement_rate

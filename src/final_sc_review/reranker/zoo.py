@@ -18,28 +18,16 @@ import numpy as np
 import torch
 
 from final_sc_review.utils.logging import get_logger
+from final_sc_review.utils.gpu_optimize import (
+    get_optimal_dtype,
+    get_device,
+    auto_init as gpu_auto_init,
+)
 
 logger = get_logger(__name__)
 
-
-def setup_hardware_optimizations():
-    """Configure hardware optimizations for NVIDIA GPUs."""
-    if torch.cuda.is_available():
-        torch.backends.cuda.matmul.allow_tf32 = True
-        torch.backends.cudnn.allow_tf32 = True
-        torch.backends.cudnn.benchmark = True
-        logger.debug("Enabled TF32 and cuDNN benchmark mode")
-
-
-def get_optimal_dtype():
-    """Get optimal dtype: BF16 if supported, else FP16."""
-    if torch.cuda.is_available() and torch.cuda.is_bf16_supported():
-        return torch.bfloat16
-    return torch.float16
-
-
 # Apply hardware optimizations on module load
-setup_hardware_optimizations()
+gpu_auto_init()
 
 
 @dataclass
@@ -54,6 +42,7 @@ class RerankerConfig:
     trust_remote_code: bool = True
     query_instruction: str = ""
     listwise_max_docs: int = 32
+    use_torch_compile: bool = False  # Enable for ~1.4x speedup (requires warmup)
 
 
 @dataclass
@@ -70,7 +59,7 @@ class BaseReranker(ABC):
 
     def __init__(self, config: RerankerConfig, device: Optional[str] = None):
         self.config = config
-        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = get_device(device)
         self.model = None
 
     @abstractmethod
@@ -111,6 +100,42 @@ class JinaRerankerV3(BaseReranker):
         super().__init__(config, device)
         self.tokenizer = None
 
+    @staticmethod
+    def _extract_scores_from_logits(
+        logits: np.ndarray,
+        expected_len: Optional[int] = None,
+    ) -> List[float]:
+        """Extract scores from model logits with consistent handling.
+
+        Args:
+            logits: Model output logits (various shapes possible)
+            expected_len: If provided, validate output length matches
+
+        Returns:
+            List of float scores
+
+        Raises:
+            ValueError: If expected_len provided and doesn't match
+        """
+        if logits.ndim == 1:
+            scores = logits.tolist()
+        elif logits.ndim == 2 and logits.shape[1] == 1:
+            scores = logits.squeeze(-1).tolist()
+        else:
+            scores = logits[:, 0].tolist()
+
+        if not isinstance(scores, list):
+            scores = [float(scores)]
+
+        # Validate length if expected
+        if expected_len is not None and len(scores) != expected_len:
+            raise ValueError(
+                f"Score extraction produced {len(scores)} scores, "
+                f"expected {expected_len}"
+            )
+
+        return scores
+
     def load_model(self) -> None:
         if self.model is not None:
             return
@@ -141,6 +166,14 @@ class JinaRerankerV3(BaseReranker):
             self.model.config.pad_token_id = self.tokenizer.pad_token_id
         self.model.to(self.device)
         self.model.train(False)
+
+        # Optional torch.compile for ~1.4x speedup
+        if self.config.use_torch_compile:
+            try:
+                self.model = torch.compile(self.model, mode="reduce-overhead")
+                logger.info(f"  Applied torch.compile optimization")
+            except Exception as e:
+                logger.warning(f"  torch.compile failed, using eager mode: {e}")
 
         logger.info(f"  Loaded Jina-Reranker-v3 with dtype={dtype}")
 
@@ -178,15 +211,9 @@ class JinaRerankerV3(BaseReranker):
             with torch.no_grad():
                 outputs = self.model(**inputs)
                 logits = outputs.logits.float().cpu().numpy()
-                if logits.ndim == 1:
-                    scores = logits.tolist()
-                elif logits.ndim == 2 and logits.shape[1] == 1:
-                    scores = logits.squeeze(-1).tolist()
-                else:
-                    scores = logits[:, 0].tolist()
-
-            if not isinstance(scores, list):
-                scores = [float(scores)]
+                scores = self._extract_scores_from_logits(
+                    logits, expected_len=len(batch_texts)
+                )
 
             all_scores.extend(scores)
 
@@ -257,16 +284,9 @@ class JinaRerankerV3(BaseReranker):
             with torch.no_grad():
                 outputs = self.model(**inputs)
                 logits = outputs.logits.float().cpu().numpy()
-                if logits.ndim == 1:
-                    scores = logits.tolist()
-                elif logits.ndim == 2 and logits.shape[1] == 1:
-                    scores = logits.squeeze(-1).tolist()
-                else:
-                    scores = logits[:, 0].tolist()
-
-                if not isinstance(scores, list):
-                    scores = [float(scores)]
-
+                scores = self._extract_scores_from_logits(
+                    logits, expected_len=len(batch_texts)
+                )
                 all_scores.extend(scores)
 
         all_results = [[] for _ in queries_and_candidates]
@@ -314,7 +334,7 @@ class RerankerZoo:
         configs: Optional[List[RerankerConfig]] = None,
         device: Optional[str] = None,
     ):
-        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = get_device(device)
         self.configs = configs or self.DEFAULT_RERANKERS
         self._rerankers: Dict[str, BaseReranker] = {}
 
