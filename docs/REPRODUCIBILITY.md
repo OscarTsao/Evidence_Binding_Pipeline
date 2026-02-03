@@ -98,9 +98,9 @@ python scripts/verification/metric_crosscheck.py \
 
 | Model | nDCG@10 | MRR | Recall@10 |
 |-------|---------|-----|-----------|
-| Baseline (NV-Embed-v2 + Jina-v3) | 0.7428 ± 0.033 | 0.6862 ± 0.042 | 0.9485 ± 0.021 |
-| + SAGE+Residual GNN | 0.8206 ± 0.030 | 0.7703 ± 0.035 | - |
-| **GNN Improvement** | **+10.48%** | **+12.25%** | - |
+| Baseline (NV-Embed-v2 + Jina-v3) | 0.7330 ± 0.031 | 0.6746 ± 0.037 | 0.9444 ± 0.022 |
+| + SAGE+Residual GNN | 0.8206 ± 0.030 | 0.7703 ± 0.035 | 0.9606 ± 0.019 |
+| **GNN Improvement** | **+10.48%** | **+12.02%** | **+1.71%** |
 
 Source: `outputs/comprehensive_ablation/`
 
@@ -153,7 +153,7 @@ A.10 (SPECIAL_CASE) is excluded from GNN training by default because:
 - Removing it focuses training on the 9 standard DSM-5 criteria
 
 **Current 5-fold CV results (A.10 excluded, SAGE+Residual architecture):**
-- Baseline nDCG@10: 0.7428 ± 0.033
+- Baseline nDCG@10: 0.7330 ± 0.031
 - SAGE+Residual nDCG@10: 0.8206 ± 0.030 (+10.48%)
 
 See `outputs/comprehensive_ablation/` for full results.

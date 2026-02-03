@@ -8,9 +8,9 @@ Sentence-criterion evidence retrieval for mental health assessment using DSM-5 M
 
 | Model | nDCG@10 | MRR | Recall@10 |
 |-------|---------|-----|-----------|
-| **Baseline (NV-Embed-v2 + Jina-v3)** | 0.7428 ± 0.033 | 0.6862 ± 0.042 | 0.9485 ± 0.021 |
-| **+ P3 GNN (SAGE+Residual)** | 0.8206 ± 0.030 | 0.7703 ± 0.035 | - |
-| **Improvement** | **+10.48%** | **+12.25%** | - |
+| **Baseline (NV-Embed-v2 + Jina-v3)** | 0.7330 ± 0.031 | 0.6746 ± 0.037 | 0.9444 ± 0.022 |
+| **+ P3 GNN (SAGE+Residual)** | 0.8206 ± 0.030 | 0.7703 ± 0.035 | 0.9606 ± 0.019 |
+| **Improvement** | **+10.48%** | **+12.02%** | **+1.71%** |
 
 **Dataset:** 13,293 queries across 1,477 posts (DSM-5 criteria A.1-A.9, A.10 excluded)
 **Evaluation:** 5-fold cross-validation, positives_only protocol
@@ -100,8 +100,8 @@ Evidence Sentences (ranked by relevance)
 | reranker_max_length | 1024 |
 
 **GNN Enhancements (P3 Graph Reranker SAGE+Residual, 5-Fold CV):**
-- nDCG@10: +10.48% (0.7428 → 0.8206)
-- MRR: +12.25% (0.6862 → 0.7703)
+- nDCG@10: +10.48% (0.7330 → 0.8206)
+- MRR: +12.02% (0.6746 → 0.7703)
 
 ## Documentation
 

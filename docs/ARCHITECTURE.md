@@ -30,7 +30,7 @@ The Evidence Binding Pipeline is a multi-stage retrieval system for identifying 
 ┌─────────────────────────────────────────────────────────────┐
 │              Stage 3: Graph Reranking (P3 GNN)              │
 │  Models sentence relationships via graph convolution         │
-│  +10.48% nDCG@10 improvement (0.7428 → 0.8206)             │
+│  +10.48% nDCG@10 improvement (0.7330 → 0.8206)             │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -121,8 +121,8 @@ retriever:
 
 ### Performance
 - Reranking speed: ~200 queries/second
-- nDCG@10 (baseline): 0.7428 ± 0.033 (5-fold CV)
-- MRR: 0.6862 ± 0.042
+- nDCG@10 (baseline): 0.7330 ± 0.031 (5-fold CV)
+- MRR: 0.6746 ± 0.037
 
 ---
 
@@ -216,8 +216,8 @@ loss:
 ### Performance (5-Fold CV, SAGE+Residual)
 | Metric | Baseline (Jina-v3) | With P3 GNN | Improvement |
 |--------|-------------------|-------------|-------------|
-| nDCG@10 | 0.7428 ± 0.033 | 0.8206 ± 0.030 | +10.48% |
-| MRR | 0.6862 ± 0.042 | 0.7703 ± 0.035 | +12.25% |
+| nDCG@10 | 0.7330 ± 0.031 | 0.8206 ± 0.030 | +10.48% |
+| MRR | 0.6746 ± 0.037 | 0.7703 ± 0.035 | +12.02% |
 
 Source: `outputs/comprehensive_ablation/`
 

@@ -1,8 +1,8 @@
 # DEFAULT CONFIGURATION - BEST MODEL COMBO
-# Updated: 2026-01-30 based on comprehensive ablation (17+ configs tested)
+# Updated: 2026-02-03 based on comprehensive ablation (17+ configs tested)
 # Best combo: nv-embed-v2 + jina-reranker-v3 + SAGE+Residual GNN
 # Performance (5-fold CV):
-#   - Baseline: nDCG@10 = 0.7428 ± 0.033
+#   - Baseline: nDCG@10 = 0.7330 ± 0.031
 #   - With P3 GNN (SAGE+Residual): nDCG@10 = 0.8206 ± 0.030 (+10.48%)
 #
 # A.10 Exclusion: A.10 (SPECIAL_CASE) is excluded from GNN training by default.
@@ -14,7 +14,7 @@ paths:
   data_dir: data
   groundtruth: data/groundtruth/evidence_sentence_groundtruth.csv
   sentence_corpus: data/groundtruth/sentence_corpus.jsonl
-  cache_dir: data/cache/nv-embed-v2
+  cache_dir: data/cache
 
 models:
   # === Zoo Pipeline (BEST) - Use with scripts/eval_zoo_pipeline.py ===
@@ -82,7 +82,7 @@ gnn:
   num_heads: 2
   num_layers: 2  # 2 layers + residual = best
   dropout: 0.05
-  activation: gelu  # GELU > ReLU: 0.8237 vs 0.8185 (+0.52%)
+  activation: gelu
   alpha_init: 0.65
   learn_alpha: true
   use_residual: true
@@ -97,12 +97,12 @@ gnn:
 
 # Metadata
 metadata:
-  updated: "2026-01-30"
+  updated: "2026-02-03"
   hpo_combo: "nv-embed-v2 + jina-reranker-v3 + SAGE+Residual"
-  baseline_ndcg10: 0.7428
+  baseline_ndcg10: 0.7330
   gnn_ndcg10: 0.8206
   gnn_improvement: "+10.48%"
-  gnn_architecture: "SAGE + Residual"
+  gnn_architecture: "SAGE + Residual + GELU"
   cv_folds: 5
   a10_exclusion: true
   notes: |
@@ -115,9 +115,6 @@ metadata:
     Conda environments:
       - nv-embed-v2: For NV-Embed-v2 retriever encoding
       - llmhe: For all other operations (reranking, GNN, evaluation)
-
-    For full zoo pipeline evaluation:
-      conda run -n llmhe python scripts/eval_zoo_pipeline.py --config configs/default.yaml
 
     For GNN training (excludes A.10 by default):
       conda run -n llmhe python scripts/gnn/train_p3_graph_reranker.py --gnn_type sage

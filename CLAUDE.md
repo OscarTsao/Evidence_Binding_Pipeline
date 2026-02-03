@@ -9,13 +9,13 @@ This is a sentence-criterion (S-C) evidence retrieval pipeline for mental health
 ### Best Model Configuration (5-Fold CV Validated)
 - **Retriever:** NV-Embed-v2 (nvidia/NV-Embed-v2) - Best from 25 retrievers
 - **Reranker:** Jina-Reranker-v3 (jinaai/jina-reranker-v3) - Best from 15 rerankers
-- **GNN Reranker:** SAGE + Residual (2-layer) + GELU activation
+- **GNN Reranker:** SAGE + Residual + GELU activation
 - **Performance (5-Fold CV):**
-  - Baseline (NV-Embed + Jina): nDCG@10 = 0.7428 ± 0.033
-  - With SAGE + Residual + GELU: nDCG@10 = **0.8237 ± 0.030** (+10.89%)
-  - MRR: 0.7823 ± 0.032
+  - Baseline (NV-Embed + Jina): nDCG@10 = 0.7330 ± 0.031
+  - With SAGE + Residual: nDCG@10 = **0.8206 ± 0.030** (+10.48%)
+  - MRR: 0.6862 → 0.7703 ± 0.035
 
-> **Source of Truth:** `outputs/experiments/activation_validation/` (GELU is new best)
+> **Source of Truth:** `outputs/comprehensive_ablation/`
 
 ### Graph Construction
 ```yaml
@@ -44,12 +44,12 @@ reranker_use_listwise: true
 ### GNN Architecture (SAGE + Residual - Verified Best)
 Comprehensive ablation tested 17+ configurations including architectures, layer counts, hidden dimensions, dropout, and normalization:
 ```yaml
-# SAGE + Residual + GELU parameters (verified best)
+# SAGE + Residual parameters (verified best from comprehensive ablation)
 architecture: sage
 hidden_dim: 128
-num_layers: 2  # 2 layers with residual connections
+num_layers: 2
 dropout: 0.05
-activation: gelu  # GELU > ReLU: +0.52% nDCG@10
+activation: gelu
 alpha_init: 0.65
 learn_alpha: true
 use_residual: true
@@ -58,10 +58,7 @@ lr: 3.69e-05
 n_epochs: 25
 weight_decay: 9.06e-06
 batch_size: 32
-# IMPORTANT: Simple margin loss only! Complex loss hurts performance.
 loss: PairwiseMarginLoss (margin=0.1)
-alpha_align: 0.0  # Do NOT use alpha_align/alpha_reg
-alpha_reg: 0.0    # Complex loss reduces nDCG by ~0.7%
 ```
 
 **Verified Experiment Results (5-Fold CV):**
@@ -77,23 +74,20 @@ alpha_reg: 0.0    # Complex loss reduces nDCG by ~0.7%
 | - | SAGE + LayerNorm | 0.7948 ± 0.025 | - | -2.38% |
 
 **Key Findings:**
-- ✅ SAGE + Residual + GELU is the best: nDCG@10 = **0.8237** (NEW!)
-- ✅ GELU activation > ReLU: +0.52% improvement
+- ✅ SAGE + Residual is the best: nDCG@10 = **0.8206 ± 0.030** (+10.48% over baseline)
+- ✅ GELU activation is used (minor improvement over ReLU)
 - ✅ Simple margin loss is optimal; complex loss hurts performance
-- ✅ Residual connections help significantly
-- ❌ GAT v2 underperforms SAGE: -1.97%
+- ✅ Residual connections help significantly (+0.78%)
+- ❌ GAT v2 underperforms SAGE: -1.18% (0.8047 vs 0.8143)
 - ❌ LayerNorm hurts significantly: -2.38%
-- ❌ Complex loss (alpha_align, alpha_reg > 0) hurts: -0.85%
+- ❌ Complex loss (alpha_align, alpha_reg > 0) hurts performance
 
 **Available GNN Types:** gcn, sage, gat, gatv2 (use `--gnn_type` flag)
 
 Run training:
 ```bash
 conda activate llmhe
-# Best configuration (SAGE + Residual with simple loss)
-python scripts/gnn/train_p3_graph_reranker.py \
-  --gnn_type sage --num_layers 2 --dropout 0.05 \
-  --lr 3.69e-5 --alpha_align 0.0 --alpha_reg 0.0 --margin 0.1
+python scripts/gnn/train_p3_graph_reranker.py --gnn_type sage
 ```
 
 ### A.10 Exclusion (Default)
@@ -248,15 +242,14 @@ split:
 ## Metrics Source of Truth
 
 The single source of truth for all metrics is:
-- `outputs/comprehensive_ablation/` (original ablation)
-- `outputs/experiments/combined_optimization/sage_residual_simple_loss/` (validated 2026-01-30)
+`outputs/comprehensive_ablation/`
 
 Primary metrics (5-fold CV, positives_only protocol):
 | Metric | Baseline | GNN (SAGE+Residual) | Improvement |
 |--------|----------|---------------------|-------------|
-| nDCG@10 | 0.7428 ± 0.033 | 0.8207 ± 0.027 | +10.49% |
-| MRR | 0.6862 ± 0.042 | 0.7795 ± 0.030 | +13.60% |
-| Recall@10 | 0.9485 ± 0.021 | 0.9659 ± 0.015 | +1.83% |
+| nDCG@10 | 0.7330 ± 0.031 | 0.8206 ± 0.030 | +10.48% |
+| MRR | 0.6746 ± 0.037 | 0.7703 ± 0.035 | +12.02% |
+| Recall@10 | 0.9444 ± 0.022 | 0.9606 ± 0.019 | +1.71% |
 
 Classification (all_queries protocol):
 - AUROC: 0.8972

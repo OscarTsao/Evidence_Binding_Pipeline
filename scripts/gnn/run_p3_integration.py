@@ -31,9 +31,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def load_p3_model(checkpoint_path: Path, input_dim: int, device: str = "cuda"):
+def load_p3_model(checkpoint_path: Path, input_dim: int, device: str = "cuda", gnn_type: str = "sage"):
     """Load P3 model from checkpoint."""
     from final_sc_review.gnn.models.p3_graph_reranker import GraphRerankerGNN
+    from final_sc_review.gnn.config import GNNType, GNNModelConfig
 
     checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
 
@@ -51,12 +52,23 @@ def load_p3_model(checkpoint_path: Path, input_dim: int, device: str = "cuda"):
     hidden_dim = config.get("hidden_dim", 128)
     num_layers = config.get("num_layers", 2)
 
+    # Create GNN config with correct architecture (default: SAGE)
+    gnn_config = GNNModelConfig(
+        gnn_type=GNNType(gnn_type),
+        hidden_dim=hidden_dim,
+        num_layers=num_layers,
+        dropout=0.05,
+        layer_norm=False,  # LayerNorm hurts performance
+        residual=True,     # Residual connections help
+    )
+
     model = GraphRerankerGNN(
         input_dim=input_dim,
         hidden_dim=hidden_dim,
         num_layers=num_layers,
-        alpha_init=0.7,
+        alpha_init=0.65,
         learn_alpha=True,
+        config=gnn_config,
     )
 
     model.load_state_dict(state_dict)
