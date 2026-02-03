@@ -37,9 +37,9 @@ The Evidence Binding Pipeline is a multi-stage retrieval system for identifying 
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │              Stage 4: P2 Dynamic-K Selection (GNN #2)       │
-│  Architecture: GCN + Regressor                              │
-│  Predicts optimal K ∈ [3, 20] based on query difficulty     │
-│  +2.7% hit rate improvement                                 │
+│  Architecture: GAT + Regressor                              │
+│  Predicts optimal K ∈ [2, 10] based on query difficulty     │
+│  Hit Rate: 94.39% ± 1.31% (5-fold CV, mass_0.8 policy)      │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -282,7 +282,7 @@ classification:
 | Module | Status | Purpose | Architecture | Key Metric |
 |--------|--------|---------|--------------|------------|
 | P1 | Deprecated | No-evidence gate | Simple GCN | AUROC 0.577 |
-| P2 | Production | Dynamic-K selection | GCN + regressor | +2.7% hit rate |
+| P2 | Production | Dynamic-K selection | GAT + regressor | **Hit Rate 94.39%** (5-fold CV) |
 | P3 | **Production** | Graph reranker | **SAGE+Residual+GELU** | **nDCG@10 +10.48%** |
 | P4 | Production | Criterion-aware classification | HeteroGNN | AUROC 0.8972 |
 

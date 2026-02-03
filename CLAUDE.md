@@ -13,7 +13,7 @@ This is a sentence-criterion (S-C) evidence retrieval pipeline for mental health
 - **Performance (5-Fold CV):**
   - Baseline (NV-Embed + Jina): nDCG@10 = 0.7330 ± 0.031
   - With SAGE + Residual: nDCG@10 = **0.8206 ± 0.030** (+10.48%)
-  - MRR: 0.6862 → 0.7703 ± 0.035
+  - MRR: 0.6746 ± 0.037 → 0.7703 ± 0.035 (+12.02%)
 
 > **Source of Truth:** `outputs/comprehensive_ablation/`
 
@@ -194,7 +194,7 @@ The recommended pipeline using retriever and reranker zoos:
 | Module | Status | Description | Architecture | Key Metric |
 |--------|--------|-------------|--------------|------------|
 | P1 | ❌ Deprecated | NE Gate (replaced by P4) | Simple GCN | AUROC=0.577 |
-| P2 | ✅ Production | Dynamic-K selection | GCN + Regressor | +2.7% hit rate |
+| P2 | ✅ Production | Dynamic-K selection | GAT + Regressor | **Hit Rate 94.39%** (5-fold CV) |
 | P3 | ✅ Production | Graph Reranker | **SAGE+Residual+GELU** | **nDCG@10 +10.48%** |
 | P4 | ✅ Production | No-Evidence Detection | HeteroGNN | AUROC=0.8972 |
 
@@ -245,17 +245,26 @@ split:
 
 ## Metrics Source of Truth
 
-The single source of truth for all metrics is:
-`outputs/comprehensive_ablation/`
+The single source of truth for all metrics:
+- **P2 Dynamic-K:** `outputs/comprehensive_eval_20260203/p2_eval/`
+- **P3 Graph Reranker:** `outputs/comprehensive_ablation/`
+- **P4 No-Evidence Detection:** `outputs/final_research_eval/20260118_031312_complete/`
 
-Primary metrics (5-fold CV, positives_only protocol):
+### P3 Graph Reranker (5-fold CV, positives_only protocol)
 | Metric | Baseline | GNN (SAGE+Residual) | Improvement |
 |--------|----------|---------------------|-------------|
 | nDCG@10 | 0.7330 ± 0.031 | 0.8206 ± 0.030 | +10.48% |
 | MRR | 0.6746 ± 0.037 | 0.7703 ± 0.035 | +12.02% |
 | Recall@10 | 0.9444 ± 0.022 | 0.9606 ± 0.019 | +1.71% |
 
-Classification (all_queries protocol):
+### P2 Dynamic-K Selection (5-fold CV, mass_0.8 policy)
+| Metric | Value |
+|--------|-------|
+| Hit Rate | 94.39% ± 1.31% |
+| Recall | 93.49% ± 1.53% |
+| Mean K | 5.01 ± 0.21 |
+
+### P4 Classification (all_queries protocol)
 - AUROC: 0.8972
 - AUPRC: 0.5709
 

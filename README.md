@@ -76,7 +76,7 @@ Query (DSM-5 Criterion) + Post
     |
 [Stage 3] P3 GNN Graph Reranker (optional refinement)
     |
-[Stage 4] P2 GNN Dynamic-K Selection (K in [3,20])
+[Stage 4] P2 GNN Dynamic-K Selection (94.39% hit rate)
     |
 [Stage 5] P4 GNN NE Gate (No-Evidence Detection)
     |
